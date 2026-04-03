@@ -1,0 +1,39 @@
+{
+  "type": "APL",
+  "version": "1.8",
+  "mainTemplate": {
+    "parameters": [
+        "welcomeData"
+    ],
+    "items": [
+      {
+        "type": "Frame",
+        "backgroundColor": "#16213e",
+        "item": {
+            "type": "Container",
+            "padding": "50",
+            "alignItems": "center",
+            "justifyContent": "center",
+            "items": [
+                {
+                    "type": "Text",
+                    "text": "${welcomeData.header}",
+                    "style": "headline",
+                    "color": "#00d2ff",
+                    "textAlign": "center"
+                },
+                {
+                    "type": "Text",
+                    "text": "${welcomeData.text}",
+                    "style": "body",
+                    "color": "#ffffff",
+                    "fontSize": "40",
+                    "paddingTop": "20",
+                    "textAlign": "center"
+                }
+            ]
+        }
+      }
+    ]
+  }
+}

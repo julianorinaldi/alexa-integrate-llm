@@ -1,0 +1,41 @@
+{
+  "type": "APL",
+  "version": "1.8",
+  "mainTemplate": {
+    "parameters": [
+      "chatData"
+    ],
+    "items": [
+      {
+        "type": "Frame",
+        "backgroundColor": "#1a1a2e",
+        "item": {
+          "type": "ScrollView",
+          "width": "100%",
+          "height": "100%",
+          "item": {
+            "type": "Container",
+            "padding": "30",
+            "items": [
+              {
+                "type": "Text",
+                "text": "${chatData.question}",
+                "style": "headline",
+                "color": "#e94560",
+                "fontWeight": "bold"
+              },
+              {
+                "type": "Text",
+                "text": "${chatData.answer}",
+                "style": "body",
+                "color": "#ffffff",
+                "fontSize": "30",
+                "paddingTop": "20"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

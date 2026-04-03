@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ..:/app
+    env_file:
+      - ../.env
+    environment:
+      - ENV=dev
+    ports:
+      - "5000:5000"
+    command: pytest tests/
