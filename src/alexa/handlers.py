@@ -110,4 +110,30 @@ class CancelOrStopIntentHandler(AbstractRequestHandler):
                 .response
         )
 
-# -- Adicione outros handlers (ErrorHandler, SessionEnded, etc) conforme necessário --
+class SessionEndedRequestHandler(AbstractRequestHandler):
+    def can_handle(self, handler_input: HandlerInput) -> bool:
+        return is_request_type("SessionEndedRequest")(handler_input)
+
+    def handle(self, handler_input: HandlerInput) -> Response:
+        # Apenas aceita sem erro
+        return handler_input.response_builder.response
+
+class CatchAllRequestHandler(AbstractRequestHandler):
+    """Fallback genérico para intenções ou eventos que não configuramos."""
+    def can_handle(self, handler_input: HandlerInput) -> bool:
+        return True
+
+    def handle(self, handler_input: HandlerInput) -> Response:
+        req = handler_input.request_envelope.request
+        if hasattr(req, "intent"):
+            intent_name = req.intent.name
+            speak_output = f"A intenção {intent_name} foi chamada, mas não tenho um handler para ela."
+        else:
+            speak_output = f"Recebi um evento do tipo {req.type}, que não sei como processar."
+            
+        return (
+            handler_input.response_builder
+                .speak(speak_output)
+                .ask(speak_output)
+                .response
+        )

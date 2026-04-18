@@ -27,8 +27,7 @@
             "pergunte {query}",
             "me diga {query}",
             "como {query}",
-            "o que é {query}",
-            "{query}"
+            "o que é {query}"
           ]
         },
         {
