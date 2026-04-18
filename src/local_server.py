@@ -6,17 +6,30 @@ from src.main import sb  # Nossa SkillBuilder configurada
 app = Flask(__name__)
 
 # Adaptador que traduz requisições HTTP para a Skill
-handler = WebserviceSkillHandler(skill=sb.create())
+handler = WebserviceSkillHandler(
+    skill=sb.create(),
+    verify_signature=False,
+    verify_timestamp=False
+)
 
-@app.route("/", methods=["POST"])
+@app.route("/", methods=["GET", "POST"])
 def invoke_skill():
     """
-    Este endpoint recebe o POST da Alexa (ou simulações via HTTP).
+    Este endpoint recebe o POST da Alexa, ou responde a GET simples do navegador.
     """
-    return handler.verify_request_and_dispatch(
-        http_request_headers=request.headers,
-        http_request_body=request.data.decode("utf-8")
-    )
+    if request.method == "GET":
+        return "✅ O Servidor Alexa-LLM está rodando perfeitamente! Utilize POST para enviar chamadas da Alexa.", 200
+
+    try:
+        body = request.get_data(as_text=True)
+        return handler.verify_request_and_dispatch(
+            http_request_headers=dict(request.headers),
+            http_request_body=body
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return str(e), 500
 
 if __name__ == "__main__":
     # Rodar servidor na porta 5000 (Exposta pelo Docker)

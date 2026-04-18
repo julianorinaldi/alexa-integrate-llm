@@ -2,7 +2,7 @@
 
 DOCKER_COMPOSE=docker compose -f docker/docker-compose.yml
 
-.PHONY: build test run shell clean package run-local
+.PHONY: build test up down shell clean package run-local
 
 build:
 	@echo "Construindo o container de desenvolvimento..."
@@ -10,7 +10,7 @@ build:
 
 run-local:
 	@echo "Iniciando servidor de debug local na porta 5000..."
-	$(DOCKER_COMPOSE) run --rm --service-ports app python src/local_server.py
+	$(DOCKER_COMPOSE) run --rm --service-ports -e PYTHONPATH=/app app python -m src.local_server
 
 package:
 	@echo "Empacotando projeto no container para o AWS Lambda..."
@@ -21,9 +21,13 @@ test:
 	$(DOCKER_COMPOSE) run --rm app pytest tests/
 
 # Caso decida rodar um servidor de desenvolvimento local para Alexa (ex: com ngrok)
-run:
-	@echo "Rodando aplicação localmente..."
-	$(DOCKER_COMPOSE) up
+up:
+	@echo "Subindo aplicação localmente em background..."
+	$(DOCKER_COMPOSE) up -d
+
+down:
+	@echo "Derrubando os containers da aplicação..."
+	$(DOCKER_COMPOSE) down
 
 shell:
 	@echo "Abrindo terminal dentro do container..."

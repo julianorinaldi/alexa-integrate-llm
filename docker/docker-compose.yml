@@ -13,4 +13,4 @@ services:
       - ENV=dev
     ports:
       - "5000:5000"
-    command: pytest tests/
+    command: sh -c "PYTHONPATH=/app python -m src.local_server"
