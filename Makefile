@@ -2,7 +2,11 @@
 
 DOCKER_COMPOSE=docker compose -f docker/docker-compose.yml
 
-.PHONY: build test up down shell clean package run-local
+.PHONY: build test up down shell clean package run-local check-llm
+
+check-llm:
+	@echo "Testando a chave de API e conexão com o OpenRouter..."
+	$(DOCKER_COMPOSE) run --rm -e PYTHONPATH=/app app python scripts/test_openrouter.py
 
 build:
 	@echo "Construindo o container de desenvolvimento..."

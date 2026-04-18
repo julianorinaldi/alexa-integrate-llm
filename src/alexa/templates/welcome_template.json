@@ -1,38 +1,25 @@
 {
   "type": "APL",
-  "version": "1.8",
+  "version": "2024.1",
+  "theme": "dark",
+  "import": [
+    {
+      "name": "alexa-layouts",
+      "version": "1.7.0"
+    }
+  ],
   "mainTemplate": {
     "parameters": [
-        "welcomeData"
+      "welcomeData"
     ],
-    "items": [
+    "item": [
       {
-        "type": "Frame",
-        "backgroundColor": "#16213e",
-        "item": {
-            "type": "Container",
-            "padding": "50",
-            "alignItems": "center",
-            "justifyContent": "center",
-            "items": [
-                {
-                    "type": "Text",
-                    "text": "${welcomeData.header}",
-                    "style": "headline",
-                    "color": "#00d2ff",
-                    "textAlign": "center"
-                },
-                {
-                    "type": "Text",
-                    "text": "${welcomeData.text}",
-                    "style": "body",
-                    "color": "#ffffff",
-                    "fontSize": "40",
-                    "paddingTop": "20",
-                    "textAlign": "center"
-                }
-            ]
-        }
+        "type": "AlexaHeadline",
+        "primaryText": "${welcomeData.header}",
+        "secondaryText": "${welcomeData.text}",
+        "backgroundImageSource": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1080",
+        "backgroundColor": "transparent",
+        "theme": "dark"
       }
     ]
   }
