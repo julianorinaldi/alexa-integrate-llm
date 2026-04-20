@@ -54,8 +54,10 @@ func (c *OpenRouterClient) Ask(prompt string, history []Message) (string, []Mess
 	start := time.Now()
 	log.Printf("Iniciando pergunta ao LLM: %s", prompt)
 
-	if history == nil {
-		history = []Message{}
+	if history == nil || len(history) == 0 {
+		history = []Message{
+			{Role: "system", Content: "Você é um assistente simpático para a Alexa. Responda sempre em português do Brasil (PT-BR), de forma concisa e direta, adequada para voz."},
+		}
 	}
 	history = append(history, Message{Role: "user", Content: prompt})
 
