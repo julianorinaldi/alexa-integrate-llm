@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -50,6 +51,9 @@ func NewOpenRouterClient() (*OpenRouterClient, error) {
 }
 
 func (c *OpenRouterClient) Ask(prompt string, history []Message) (string, []Message) {
+	start := time.Now()
+	log.Printf("Iniciando pergunta ao LLM: %s", prompt)
+
 	if history == nil {
 		history = []Message{}
 	}
@@ -79,8 +83,8 @@ func (c *OpenRouterClient) Ask(prompt string, history []Message) (string, []Mess
 	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("Erro na chamada GET para OpenRouter: %v\n", err)
-		return "Sinto muito, tive um erro ao processar sua pergunta. Pode tentar novamente?", history
+		log.Printf("Erro na chamada OpenRouter: %v\n", err)
+		return "Sinto muito, tive um erro ao processar sua pergunta.", history
 	}
 	defer resp.Body.Close()
 
@@ -102,5 +106,6 @@ func (c *OpenRouterClient) Ask(prompt string, history []Message) (string, []Mess
 	answer := chatResp.Choices[0].Message.Content
 	history = append(history, Message{Role: "assistant", Content: answer})
 
+	log.Printf("LLM respondeu em %v", time.Since(start))
 	return answer, history
 }

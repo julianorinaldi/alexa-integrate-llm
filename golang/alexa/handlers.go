@@ -1,7 +1,7 @@
 package alexa
 
 import (
-	"alexa-llm-go/llm"
+	"github.com/julianorinaldi/alexa-llm-go/llm"
 	"embed"
 	"encoding/json"
 	"fmt"

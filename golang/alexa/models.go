@@ -1,6 +1,6 @@
 package alexa
 
-import "alexa-llm-go/llm"
+import "github.com/julianorinaldi/alexa-llm-go/llm"
 
 type RequestEnvelope struct {
 	Session Session `json:"session"`

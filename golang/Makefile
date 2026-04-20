@@ -16,3 +16,16 @@ down:
 
 logs:
 	$(DOCKER_COMPOSE) logs -f
+
+deploy:
+	@echo "📌 Iniciando deploy para o Google Cloud Functions..."
+	@bash -c 'set -a; source ../.env; set +a; \
+	gcloud functions deploy alexa-llm-go \
+	  --gen2 \
+	  --runtime=go124 \
+	  --region=us-central1 \
+	  --source=. \
+	  --entry-point=HandleAlexaRequest \
+	  --trigger-http \
+	  --allow-unauthenticated \
+	  --set-env-vars OPENROUTER_API_KEY="$$OPENROUTER_API_KEY",MODEL_NAME="$$MODEL_NAME",ALEXA_SKILL_ID="$$ALEXA_SKILL_ID",ALEXA_SECRET_TOKEN="$$ALEXA_SECRET_TOKEN"'

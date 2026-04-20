@@ -1,8 +1,8 @@
 package alexallm
 
 import (
-	"alexa-llm-go/alexa"
-	"alexa-llm-go/llm"
+	"github.com/julianorinaldi/alexa-llm-go/alexa"
+	"github.com/julianorinaldi/alexa-llm-go/llm"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -29,6 +29,8 @@ func HandleAlexaRequest(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
+
+	log.Printf("Recebendo Request: Type=%s, Intent=%s", reqEnvelope.Request.Type, reqEnvelope.Request.Intent.Name)
 
 	// ---- INÍCIO DA VERIFICAÇÃO DE SEGURANÇA ----
 	

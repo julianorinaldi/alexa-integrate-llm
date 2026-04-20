@@ -47,7 +47,7 @@ Para que a Alexa entenda o que o usuário fala e encaminhe para o nosso código,
 5. **Aponte para o seu Servidor Go**:
    - No menu lateral, acesse **Endpoint**.
    - Selecione **HTTPS**. Em *Default Region*, cole a URL onde o seu serviço Go está rodando (via Cloudflare Tunnel para testes locais, ou a URL oficial da sua Google Cloud Function em produção).
-   - *Lembrete de Segurança*: Não se esqueça de adicionar o `?token=UmaSenhaComplexa123` no final da URL se configurou o `ALEXA_SECRET_TOKEN`.
+   - *Lembrete de Segurança*: Não se esqueça de adicionar o `?token=UmaSenhaComplexa123` no final da URL se configurou o `ALEXA_SECRET_TOKEN`. Atualmente estou usando um subdomínio e tratando nele o endereço correto: https://alexa.numeric.com.br?token=UmaSenhaMuitoComplexa123
 
 ---
 
@@ -88,23 +88,29 @@ A partir deste momento, a sua Alexa enviará todos os diálogos de voz tunelados
 
 Como a API é escrita nativamente em Go adotando a estrutura do `net/http`, você possui total liberdade para deployar a função em qualquer lugar (Docker, Cloud Run, AWS Lambda Webhook), mas o código já vem **preparado nativamente para Google Cloud Functions**.
 
-### Google Cloud Functions
-A nossa função se chama `HandleAlexaRequest` e está no pacote Go, o que atende perfeitamente à assinatura exigida pelo GCP para "HTTP Functions".
+### Google Cloud Functions (Recomendado)
+A nossa função se chama `HandleAlexaRequest` e está configurada nativamente para atender à assinatura exigida pelo GCP ("HTTP Functions"). Nós criamos um script automatizado no `Makefile` que extrai suas variáveis do arquivo `.env` para te poupar tempo!
 
-**Usando o comando gcloud:**
-```bash
-cd golang/
-gcloud functions deploy alexa-llm-go \
-  --gen2 \
-  --runtime=go121 \
-  --region=us-central1 \
-  --source=. \
-  --entry-point=HandleAlexaRequest \
-  --trigger-http \
-  --allow-unauthenticated \
-  --set-env-vars OPENROUTER_API_KEY=sua_chave,MODEL_NAME=gpt-4o-mini
-```
-* **`--entry-point=HandleAlexaRequest`**: É a função exata mapeada no arquivo `golang/function.go` a ser ativada por requisições originárias da nuvem.
+**Passo a passo do primeiro deploy:**
+1. Autentique-se e defina seu projeto no CLI:
+   ```bash
+   gcloud auth login
+   gcloud config set project O_NOME_DO_SEU_PROJETO
+   ```
+2. Ative as APIs obrigatórias do Google (só na primeira vez):
+   ```bash
+   gcloud services enable cloudfunctions.googleapis.com \
+     cloudbuild.googleapis.com \
+     run.googleapis.com \
+     artifactregistry.googleapis.com
+   ```
+3. Preencha seu arquivo `.env` com sua chave do OpenRouter, IDs da Alexa e Tokens.
+4. Faça o Deploy Automático!
+   ```bash
+   cd golang/
+   make deploy
+   ```
+*O comando injetará sozinho suas variáveis secretas e após 2 minutos te retornará a URL oficial da sua função (ex: `https://us-central1-...cloudfunctions.net/alexa-llm-go`). Essa é a URL para botar no Portal da Alexa!*
 
 ### Deploy Como Container (Google Cloud Run / AWS ECS / VPS)
 É possível hospedar seu container nativamente onde preferir graças ao `Dockerfile` de Multi-stage, que gera uma imagem final minúscula:
@@ -127,3 +133,4 @@ Se você preferir continuar usando o provedor nativo em Python, os comandos de d
 
 ## URL Importantes
 AWS Developer Alexa: https://developer.amazon.com/alexa/console/ask
+GCP Console: https://console.cloud.google.com/home

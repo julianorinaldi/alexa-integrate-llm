@@ -1,7 +1,7 @@
 package main
 
 import (
-	"alexa-llm-go"
+	"github.com/julianorinaldi/alexa-llm-go"
 	"fmt"
 	"log"
 	"net/http"
