@@ -20,6 +20,11 @@ def invoke_skill():
     if request.method == "GET":
         return "✅ O Servidor Alexa-LLM está rodando perfeitamente! Utilize POST para enviar chamadas da Alexa.", 200
 
+    # Verificação por Token de URL Opcional (?token=...)
+    secret_token = os.environ.get("ALEXA_SECRET_TOKEN")
+    if secret_token and request.args.get("token") != secret_token:
+        return "Unauthorized - Invalid Token", 401
+        
     try:
         body = request.get_data(as_text=True)
         return handler.verify_request_and_dispatch(

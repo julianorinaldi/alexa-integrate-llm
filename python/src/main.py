@@ -7,8 +7,13 @@ from src.alexa.handlers import (
     CatchAllRequestHandler
 )
 
+import os
+
 # Registramos os handlers na skill
 sb = SkillBuilder()
+expected_skill_id = os.getenv("ALEXA_SKILL_ID")
+if expected_skill_id:
+    sb.skill_id = expected_skill_id
 
 # Adicionados por ordem de prioridade
 sb.add_request_handler(LaunchRequestHandler())

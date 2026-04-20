@@ -1,0 +1,29 @@
+{
+  "type": "APL",
+  "version": "2024.1",
+  "theme": "dark",
+  "import": [
+    {
+      "name": "alexa-layouts",
+      "version": "1.7.0"
+    }
+  ],
+  "mainTemplate": {
+    "parameters": [
+      "chatData"
+    ],
+    "item": [
+      {
+        "type": "AlexaDetail",
+        "headerTitle": "Assistente Inteligente",
+        "headerBackButton": false,
+        "imageSource": "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?q=80&w=1080",
+        "imageAlignment": "right",
+        "primaryText": "${chatData.question}",
+        "secondaryText": "${chatData.answer}",
+        "backgroundColor": "transparent",
+        "theme": "dark"
+      }
+    ]
+  }
+}

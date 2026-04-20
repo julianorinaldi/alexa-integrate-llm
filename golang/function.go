@@ -1,0 +1,72 @@
+package alexallm
+
+import (
+	"alexa-llm-go/alexa"
+	"alexa-llm-go/llm"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+)
+
+func HandleAlexaRequest(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintln(w, "✅ O Servidor Alexa-LLM em GO está rodando perfeitamente! Utilize POST para enviar chamadas da Alexa.")
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var reqEnvelope alexa.RequestEnvelope
+	if err := json.NewDecoder(r.Body).Decode(&reqEnvelope); err != nil {
+		log.Printf("Erro ao decodificar JSON da Alexa: %v\n", err)
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	// ---- INÍCIO DA VERIFICAÇÃO DE SEGURANÇA ----
+	
+	// 1. Verificação por Token de URL Opcional (?token=...)
+	secretToken := os.Getenv("ALEXA_SECRET_TOKEN")
+	if secretToken != "" && r.URL.Query().Get("token") != secretToken {
+		log.Printf("Acesso negado: Secret Token inválido ou ausente")
+		http.Error(w, "Unauthorized - Invalid Token", http.StatusUnauthorized)
+		return
+	}
+
+	// 2. Verificação oficial pelo ALEXA_SKILL_ID (Mecanismo recomendado pela Amazon)
+	expectedSkillID := os.Getenv("ALEXA_SKILL_ID")
+	if expectedSkillID != "" {
+		appID := reqEnvelope.Session.Application.ApplicationID
+		if appID == "" {
+			appID = reqEnvelope.Context.System.Application.ApplicationID
+		}
+		if appID != expectedSkillID {
+			log.Printf("Acesso negado: Skill ID %s não corresponde ao esperado", appID)
+			http.Error(w, "Unauthorized - Invalid Skill ID", http.StatusUnauthorized)
+			return
+		}
+	}
+	
+	// ---- FIM DA VERIFICAÇÃO DE SEGURANÇA ----
+
+	llmClient, err := llm.NewOpenRouterClient()
+	if err != nil {
+		log.Printf("Aviso LLM INIT: %v", err)
+		// We still process so that Alexa can reply there's an error rather than just 500 error
+	}
+
+	handler := alexa.NewAlexaHandler(llmClient)
+	respEnvelope := handler.Handle(reqEnvelope)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(respEnvelope); err != nil {
+		log.Printf("Erro ao enviar resposta JSON: %v\n", err)
+	}
+}
