@@ -4,16 +4,14 @@ from src.alexa.handlers import (
     AskIntentHandler, 
     CancelOrStopIntentHandler,
     SessionEndedRequestHandler,
-    CatchAllRequestHandler
+    CatchAllRequestHandler,
+    SkillIdVerifierInterceptor
 )
 
 import os
 
 # Registramos os handlers na skill
 sb = SkillBuilder()
-expected_skill_id = os.getenv("ALEXA_SKILL_ID")
-if expected_skill_id:
-    sb.skill_id = expected_skill_id
 
 # Adicionados por ordem de prioridade
 sb.add_request_handler(LaunchRequestHandler())
@@ -21,6 +19,9 @@ sb.add_request_handler(AskIntentHandler())
 sb.add_request_handler(CancelOrStopIntentHandler())
 sb.add_request_handler(SessionEndedRequestHandler())
 sb.add_request_handler(CatchAllRequestHandler())
+
+# Adicionamos o interceptor para validar múltiplos Skill IDs
+sb.add_global_request_interceptor(SkillIdVerifierInterceptor())
 
 # Exportamos para o AWS Lambda invocar
 handler = sb.lambda_handler()

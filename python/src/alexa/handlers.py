@@ -1,9 +1,10 @@
 import json
 import os
-from ask_sdk_core.dispatch_components import AbstractRequestHandler
+from ask_sdk_core.dispatch_components import AbstractRequestHandler, AbstractRequestInterceptor
 from ask_sdk_core.utils import is_request_type, is_intent_name
 from ask_sdk_core.handler_input import HandlerInput
 from ask_sdk_model import Response
+from ask_sdk_core.exceptions import AlexaSdkException
 from ask_sdk_model.interfaces.alexa.presentation.apl import RenderDocumentDirective
 from src.llm.client import llm_client
 
@@ -137,3 +138,18 @@ class CatchAllRequestHandler(AbstractRequestHandler):
                 .ask(speak_output)
                 .response
         )
+
+class SkillIdVerifierInterceptor(AbstractRequestInterceptor):
+    """Verifica se o ID da Skill que está chamando está na lista permitida."""
+    def process(self, handler_input):
+        # type: (HandlerInput) -> None
+        expected_ids_str = os.getenv("ALEXA_SKILL_ID")
+        if not expected_ids_str:
+            return
+
+        allowed_ids = [s.strip() for s in expected_ids_str.split(",")]
+        current_id = handler_input.request_envelope.context.system.application.application_id
+        
+        if current_id not in allowed_ids:
+            print(f"Acesso negado: Skill ID {current_id} não autorizado.")
+            raise AlexaSdkException("Skill ID não autorizado.")

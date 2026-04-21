@@ -24,6 +24,7 @@
             }
           ],
           "samples": [
+            "{query}",
             "pergunte {query}",
             "pergunte ao assistente {query}",
             "pergunte para a inteligência artificial {query}",
@@ -57,6 +58,10 @@
         },
         {
           "name": "AMAZON.NavigateHomeIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.FallbackIntent",
           "samples": []
         }
       ],

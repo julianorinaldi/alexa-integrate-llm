@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 func HandleAlexaRequest(w http.ResponseWriter, r *http.Request) {
@@ -43,14 +44,25 @@ func HandleAlexaRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Verificação oficial pelo ALEXA_SKILL_ID (Mecanismo recomendado pela Amazon)
-	expectedSkillID := os.Getenv("ALEXA_SKILL_ID")
-	if expectedSkillID != "" {
+	// Suporta múltiplos IDs separados por vírgula
+	expectedSkillIDs := os.Getenv("ALEXA_SKILL_ID")
+	if expectedSkillIDs != "" {
 		appID := reqEnvelope.Session.Application.ApplicationID
 		if appID == "" {
 			appID = reqEnvelope.Context.System.Application.ApplicationID
 		}
-		if appID != expectedSkillID {
-			log.Printf("Acesso negado: Skill ID %s não corresponde ao esperado", appID)
+		
+		allowedIDs := strings.Split(expectedSkillIDs, ",")
+		authorized := false
+		for _, id := range allowedIDs {
+			if strings.TrimSpace(id) == appID {
+				authorized = true
+				break
+			}
+		}
+
+		if !authorized {
+			log.Printf("Acesso negado: Skill ID %s não está na lista de IDs permitidos", appID)
 			http.Error(w, "Unauthorized - Invalid Skill ID", http.StatusUnauthorized)
 			return
 		}
