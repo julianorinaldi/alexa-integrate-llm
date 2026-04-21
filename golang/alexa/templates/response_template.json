@@ -1,6 +1,6 @@
 {
   "type": "APL",
-  "version": "2024.1",
+  "version": "24.1",
   "theme": "dark",
   "import": [
     {
@@ -14,15 +14,78 @@
     ],
     "item": [
       {
-        "type": "AlexaDetail",
-        "headerTitle": "Assistente Inteligente",
-        "headerBackButton": false,
-        "imageSource": "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?q=80&w=1080",
-        "imageAlignment": "right",
-        "primaryText": "${chatData.question}",
-        "secondaryText": "${chatData.answer}",
-        "backgroundColor": "transparent",
-        "theme": "dark"
+        "type": "Container",
+        "width": "100vw",
+        "height": "100vh",
+        "items": [
+          {
+            "type": "AlexaBackground",
+            "backgroundImageSource": "https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=1920",
+            "backgroundOverlay": true,
+            "overlayGradient": true
+          },
+          {
+            "type": "ScrollView",
+            "width": "100vw",
+            "height": "100vh",
+            "item": {
+              "type": "Container",
+              "padding": "5vw",
+              "items": [
+                {
+                  "type": "Text",
+                  "text": "PERGUNTA",
+                  "color": "#38bdf8",
+                  "fontSize": "3vw",
+                  "fontWeight": "bold",
+                  "letterSpacing": "0.3vw",
+                  "opacity": 0.6
+                },
+                {
+                  "type": "Frame",
+                  "backgroundColor": "rgba(255,255,255,0.05)",
+                  "padding": "2vw",
+                  "borderRadius": "1vw",
+                  "borderLeftWidth": "4px",
+                  "borderLeftColor": "#38bdf8",
+                  "marginTop": "1vh",
+                  "marginBottom": "4vh",
+                  "item": {
+                    "type": "Text",
+                    "text": "${chatData.question}",
+                    "fontSize": "4vw",
+                    "color": "white"
+                  }
+                },
+                {
+                  "type": "Text",
+                  "text": "RESPOSTA IA",
+                  "color": "#a855f7",
+                  "fontSize": "3vw",
+                  "fontWeight": "bold",
+                  "letterSpacing": "0.3vw",
+                  "opacity": 0.6
+                },
+                {
+                  "type": "Frame",
+                  "backgroundColor": "rgba(168, 85, 247, 0.1)",
+                  "padding": "3vw",
+                  "borderRadius": "1vw",
+                  "borderLeftWidth": "4px",
+                  "borderLeftColor": "#a855f7",
+                  "marginTop": "1vh",
+                  "item": {
+                    "type": "Text",
+                    "text": "${chatData.answer}",
+                    "fontSize": "4.5vw",
+                    "color": "#e2e8f0",
+                    "lineHeight": 1.4
+                  }
+                }
+              ]
+            }
+          }
+        ]
       }
     ]
   }

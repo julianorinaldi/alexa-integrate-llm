@@ -9,6 +9,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 // AuthorizedSkill representa um registro no banco de dados
@@ -65,19 +67,26 @@ func checkSupabaseAuth(skillID, token string) bool {
 }
 
 func redirectRelative(w http.ResponseWriter, r *http.Request, target string) {
-	currentPath := r.URL.Path // Ex: /alexa-llm-go/admin
-	parts := strings.Split(currentPath, "/")
-	if len(parts) > 0 {
-		// Troca o último segmento pelo alvo (ex: admin -> login)
-		parts[len(parts)-1] = target
-		newPath := strings.Join(parts, "/")
-		http.Redirect(w, r, newPath, http.StatusFound)
-		return
+	currentPath := r.URL.Path
+	// Simplificar para garantir que o redirecionamento inclua o prefixo da função
+	if !strings.HasPrefix(target, "/") {
+		// Se não tem barra, pegamos o diretório pai
+		parts := strings.Split(strings.TrimSuffix(currentPath, "/"), "/")
+		if len(parts) > 1 {
+			parts[len(parts)-1] = target
+			target = strings.Join(parts, "/")
+		} else {
+			target = "/" + target
+		}
 	}
 	http.Redirect(w, r, target, http.StatusFound)
 }
 
 func handleAdminRouting(w http.ResponseWriter, r *http.Request) {
+	// Tentar carregar .env se existir (útil para desenvolvimento local e GCF se o arquivo for enviado)
+	godotenv.Load("../.env")
+	godotenv.Load(".env")
+
 	path := r.URL.Path
 	
 	if strings.HasSuffix(path, "/login") {
@@ -120,7 +129,10 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	user := r.FormValue("username")
 	pass := r.FormValue("password")
 
-	if user != "" && user == os.Getenv("DASHBOARD_USER") && pass == os.Getenv("DASHBOARD_PASS") {
+	dashUser := os.Getenv("DASHBOARD_USER")
+	dashPass := os.Getenv("DASHBOARD_PASS")
+
+	if user != "" && user == dashUser && pass == dashPass {
 		http.SetCookie(w, &http.Cookie{
 			Name:    "admin_session",
 			Value:   "authorized",
@@ -131,7 +143,8 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	renderLogin(w, "Credenciais inválidas ou não configuradas no .env")
+	log.Printf("Tentativa de login falhou. Env User: '%s', Pass configured: %v", dashUser, dashPass != "")
+	renderLogin(w, "Credenciais inválidas ou variáveis não carregadas.")
 }
 
 func renderLogin(w http.ResponseWriter, errorMsg string) {

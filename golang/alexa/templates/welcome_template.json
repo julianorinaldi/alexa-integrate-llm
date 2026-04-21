@@ -1,6 +1,6 @@
 {
   "type": "APL",
-  "version": "2024.1",
+  "version": "24.1",
   "theme": "dark",
   "import": [
     {
@@ -14,12 +14,65 @@
     ],
     "item": [
       {
-        "type": "AlexaHeadline",
-        "primaryText": "${welcomeData.header}",
-        "secondaryText": "${welcomeData.text}",
-        "backgroundImageSource": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1080",
-        "backgroundColor": "transparent",
-        "theme": "dark"
+        "type": "Container",
+        "width": "100vw",
+        "height": "100vh",
+        "items": [
+          {
+            "type": "AlexaBackground",
+            "backgroundImageSource": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920",
+            "backgroundBlur": true,
+            "overlayGradient": true
+          },
+          {
+            "type": "Frame",
+            "position": "absolute",
+            "top": "15vh",
+            "left": "10vw",
+            "right": "10vw",
+            "bottom": "15vh",
+            "backgroundColor": "rgba(30, 41, 59, 0.6)",
+            "borderRadius": "2vw",
+            "borderWidth": "2px",
+            "borderColor": "rgba(56, 189, 248, 0.3)",
+            "item": {
+              "type": "Container",
+              "paddingLeft": "5vw",
+              "paddingRight": "5vw",
+              "justifyContent": "center",
+              "alignItems": "center",
+              "items": [
+                {
+                  "type": "Text",
+                  "text": "${welcomeData.header}",
+                  "fontSize": "8vw",
+                  "fontWeight": "100",
+                  "color": "#38bdf8",
+                  "letterSpacing": "0.5vw",
+                  "textAlign": "center"
+                },
+                {
+                  "type": "Frame",
+                  "width": "20vw",
+                  "height": "0.5vh",
+                  "backgroundColor": "#38bdf8",
+                  "marginTop": "2vh",
+                  "marginBottom": "4vh",
+                  "opacity": 0.5
+                },
+                {
+                  "type": "Text",
+                  "text": "${welcomeData.text}",
+                  "fontSize": "4vw",
+                  "fontWeight": "300",
+                  "color": "white",
+                  "textAlign": "center",
+                  "opacity": 0.8
+                }
+              ]
+            }
+          }
+        ]
       }
     ]
   }
