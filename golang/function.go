@@ -12,10 +12,17 @@ import (
 )
 
 func HandleAlexaRequest(w http.ResponseWriter, r *http.Request) {
+	// Roteamento básico
+	path := r.URL.Path
+	if strings.Contains(path, "/admin") || strings.Contains(path, "/login") {
+		handleAdminRouting(w, r)
+		return
+	}
+
 	if r.Method == http.MethodGet {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, "✅ O Servidor Alexa-LLM em GO está rodando perfeitamente! Utilize POST para enviar chamadas da Alexa.")
+		fmt.Fprintln(w, "✅ O Servidor Alexa-LLM está rodando! Acesse /admin para gerenciar.")
 		return
 	}
 
@@ -43,29 +50,17 @@ func HandleAlexaRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2. Verificação oficial pelo ALEXA_SKILL_ID (Mecanismo recomendado pela Amazon)
-	// Suporta múltiplos IDs separados por vírgula
-	expectedSkillIDs := os.Getenv("ALEXA_SKILL_ID")
-	if expectedSkillIDs != "" {
-		appID := reqEnvelope.Session.Application.ApplicationID
-		if appID == "" {
-			appID = reqEnvelope.Context.System.Application.ApplicationID
-		}
-		
-		allowedIDs := strings.Split(expectedSkillIDs, ",")
-		authorized := false
-		for _, id := range allowedIDs {
-			if strings.TrimSpace(id) == appID {
-				authorized = true
-				break
-			}
-		}
+	// 2. Verificação oficial pelo ALEXA_SKILL_ID
+	// Agora verificamos tanto na lista estática do .env quanto no banco de dados Supabase
+	appID := reqEnvelope.Session.Application.ApplicationID
+	if appID == "" {
+		appID = reqEnvelope.Context.System.Application.ApplicationID
+	}
 
-		if !authorized {
-			log.Printf("Acesso negado: Skill ID %s não está na lista de IDs permitidos", appID)
-			http.Error(w, "Unauthorized - Invalid Skill ID", http.StatusUnauthorized)
-			return
-		}
+	if !isAuthorized(appID, r.URL.Query().Get("token")) {
+		log.Printf("Acesso negado para Skill ID: %s", appID)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
 	}
 	
 	// ---- FIM DA VERIFICAÇÃO DE SEGURANÇA ----

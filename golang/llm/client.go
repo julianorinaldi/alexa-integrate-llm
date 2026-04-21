@@ -56,7 +56,7 @@ func (c *OpenRouterClient) Ask(prompt string, history []Message) (string, []Mess
 
 	if history == nil || len(history) == 0 {
 		history = []Message{
-			{Role: "system", Content: "Você é um assistente simpático para a Alexa. Responda sempre em português do Brasil (PT-BR), de forma concisa e clara, adequada para voz."},
+			{Role: "system", Content: "Você é um assistente simpático para a Alexa. Responda sempre em português do Brasil (PT-BR), de forma coerente e que a resposta não ultrapasse 50 palavras."},
 		}
 	}
 	history = append(history, Message{Role: "user", Content: prompt})

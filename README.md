@@ -19,8 +19,12 @@ Crie um arquivo `.env` na raiz do projeto (o arquivo `.gitignore` já está conf
 | :--- | :--- | :--- |
 | `OPENROUTER_API_KEY` | Sua chave de API do OpenRouter. | `sk-or-v1-...` |
 | `MODEL_NAME` | Nome do modelo (recomenda-se modelos Flash para baixa latência). | `google/gemini-2.0-flash-lite` |
-| `ALEXA_SKILL_ID` | (Segurança) Restringe o acesso apenas à sua Alexa Skill. | `amzn1.ask.skill...` |
-| `ALEXA_SECRET_TOKEN` | (Segurança) Exige `?token=` na URL do seu Webhook. | `UmaSenhaComplexa123` |
+| `ALEXA_SKILL_ID` | (Segurança) Lista de IDs permitidos (separados por vírgula). | `amzn1.ask.skill...,amzn2...` |
+| `ALEXA_SECRET_TOKEN` | (Segurança) Token global compartilhado para acesso. | `UmaSenhaComplexa123` |
+| `SUPABASE_URL` | URL do seu projeto Supabase para persistência de IDs. | `https://qz...supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Chave secreta de serviço do Supabase. | `eyJhbGciOi...` |
+| `DASHBOARD_USER` | Usuário para acessar o painel administrativo. | `admin` |
+| `DASHBOARD_PASS` | Senha para acessar o painel administrativo. | `mudar123` |
 
 ---
 
@@ -41,7 +45,38 @@ Para que a Alexa entenda o que o usuário fala e encaminhe para o nosso código,
 4. **Endpoint**:
    - Selecione **HTTPS**. Em *Default Region*, cole a URL da sua Cloud Function com o token:
      `https://SUA_URL_GCP/alexa-llm-go?token=SEU_TOKEN`
-   - SSL: Selecione *"My development endpoint is a sub-domain of a domain that has a wildcard certificate..."*.
+    - SSL: Selecione *"My development endpoint is a sub-domain of a domain that has a wildcard certificate..."*.
+
+### 🔄 Captura Total (Ask-All)
+O modelo de interação foi configurado para capturar **qualquer frase ou pergunta** (via `AMAZON.SearchQuery`). Isso significa que o usuário não precisa usar comandos prefixados. Toda a fala é enviada diretamente ao LLM para processamento contextual.
+
+---
+
+## 🖥️ Painel Administrativo e Multi-Usuários
+
+Agora você pode compartilhar seu backend com outras pessoas de forma segura através do Painel Administrativo embutido.
+
+### Como funciona:
+1. **Acesso**: Navegue até `https://SUA_URL_GCP/admin`.
+2. **Login**: Use as credenciais configuradas nas variáveis `DASHBOARD_USER` e `DASHBOARD_PASS`.
+3. **Gerenciamento**:
+   - Cadastre novos **Skill IDs** e **Secret Tokens** individuais para amigos ou clientes.
+   - O sistema valida a permissão consultando tanto o `.env` (acesso mestre) quanto o banco de dados Supabase em tempo real.
+
+---
+
+## 📦 Banco de Dados (Supabase)
+
+O projeto utiliza o **Supabase (PostgreSQL)** para persistência de dados fora do ciclo de vida efêmero do Cloud Functions.
+
+### Estrutura da Tabela:
+A tabela `authorized_skills` armazena:
+- `skill_id`: O identificador exclusivo da Alexa Skill.
+- `secret_token`: O token de segurança que deve ser passado na URL do webhook.
+- `owner_name`: Nome da pessoa/dispositivo para identificação.
+
+### Configuração Inicial:
+Certifique-se de executar o script SQL de criação da tabela (disponível na documentação técnica) no painel do Supabase antes de usar o Dashboard.
 
 ---
 
@@ -98,3 +133,4 @@ O sistema agora possui um **System Prompt** fixo no arquivo `llm/client.go` que 
 AWS Developer Alexa: https://developer.amazon.com/alexa/console/ask
 GCP Console: https://console.cloud.google.com/home
 Endpoint publicado: https://us-central1-alexa-inteligente.cloudfunctions.net/alexa-llm-go
+Bando Supabase: https://supabase.com/dashboard/project/qzuredmnnkidmsftngac
