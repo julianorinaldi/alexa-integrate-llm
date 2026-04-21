@@ -66,21 +66,19 @@ func checkSupabaseAuth(skillID, token string) bool {
 	return resp.StatusCode == http.StatusOK && resp.Header.Get("Content-Range") != "" && !strings.HasSuffix(resp.Header.Get("Content-Range"), "/0")
 }
 
-func redirectRelative(w http.ResponseWriter, r *http.Request, target string) {
-	currentPath := r.URL.Path
-	// Simplificar para garantir que o redirecionamento inclua o prefixo da função
-	if !strings.HasPrefix(target, "/") {
-		// Se não tem barra, pegamos o diretório pai
-		parts := strings.Split(strings.TrimSuffix(currentPath, "/"), "/")
-		if len(parts) > 1 {
-			parts[len(parts)-1] = target
-			target = strings.Join(parts, "/")
-		} else {
-			target = "/" + target
-		}
+// baseURL retorna a URL base do painel (ex: https://....cloudfunctions.net/alexa-llm-go)
+func baseURL() string {
+	base := os.Getenv("FUNCTION_BASE_URL")
+	if base == "" {
+		base = "http://localhost:8080" // fallback local
 	}
-	http.Redirect(w, r, target, http.StatusFound)
+	return strings.TrimSuffix(base, "/")
 }
+
+func adminRedirect(w http.ResponseWriter, r *http.Request, page string) {
+	http.Redirect(w, r, baseURL()+"/"+page, http.StatusSeeOther)
+}
+
 
 func handleAdminRouting(w http.ResponseWriter, r *http.Request) {
 	// Tentar carregar .env se existir (útil para desenvolvimento local e GCF se o arquivo for enviado)
@@ -95,7 +93,7 @@ func handleAdminRouting(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !isAuthenticated(r) {
-		redirectRelative(w, r, "login")
+		adminRedirect(w, r, "login")
 		return
 	}
 
@@ -139,7 +137,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 			Path:    "/",
 			Expires: time.Now().Add(24 * time.Hour),
 		})
-		redirectRelative(w, r, "admin")
+		adminRedirect(w, r, "admin")
 		return
 	}
 
@@ -169,10 +167,10 @@ func renderLogin(w http.ResponseWriter, errorMsg string) {
 		<div class="card">
 			<h2 style="text-align:center">Painel Alexa</h2>
 			%s
-			<form method="POST"><input type="text" name="username" placeholder="Usuário"><input type="password" name="password" placeholder="Senha"><button>Entrar</button></form>
+			<form method="POST" action="%s/login"><input type="text" name="username" placeholder="Usuário"><input type="password" name="password" placeholder="Senha"><button>Entrar</button></form>
 		</div>
 	</body>
-	</html>`, formatError(errorMsg))
+	</html>`, formatError(errorMsg), baseURL())
 }
 
 func formatError(msg string) string {
@@ -208,7 +206,7 @@ func renderDashboard(w http.ResponseWriter) {
 			</header>
 			<div class="card">
 				<h3>Novo Dispositivo/Pessoa</h3>
-				<form method="POST" action="admin">
+				<form method="POST" action="%s/admin">
 					<input type="text" name="owner" placeholder="Nome" required>
 					<input type="text" name="skill_id" placeholder="Skill ID" required>
 					<input type="text" name="token" placeholder="Token" required>
@@ -223,13 +221,13 @@ func renderDashboard(w http.ResponseWriter) {
 			</div>
 		</div>
 	</body>
-	</html>`, renderTableRows(skills))
+	</html>`, baseURL(), renderTableRows(skills, baseURL()))
 }
 
-func renderTableRows(skills []AuthorizedSkill) string {
+func renderTableRows(skills []AuthorizedSkill, base string) string {
 	var res string
 	for _, s := range skills {
-		res += fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td>%s</td><td><a href="admin/delete?id=%s" style="color:#f87171">Remover</a></td></tr>`, s.OwnerName, s.SkillID, s.SecretToken, s.ID)
+		res += fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td>%s</td><td><a href="%s/admin/delete?id=%s" style="color:#f87171">Remover</a></td></tr>`, s.OwnerName, s.SkillID, s.SecretToken, base, s.ID)
 	}
 	return res
 }
@@ -265,7 +263,7 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 	req.Header.Set("Content-Type", "application/json")
 	client := &http.Client{Timeout: 5 * time.Second}
 	client.Do(req)
-	redirectRelative(w, r, "admin")
+	adminRedirect(w, r, "admin")
 }
 
 func handleDelete(w http.ResponseWriter, r *http.Request) {
@@ -277,5 +275,5 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 	req.Header.Set("Authorization", "Bearer "+supabaseKey)
 	client := &http.Client{Timeout: 5 * time.Second}
 	client.Do(req)
-	redirectRelative(w, r, "admin")
+	adminRedirect(w, r, "admin")
 }

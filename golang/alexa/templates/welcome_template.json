@@ -1,79 +1,62 @@
 {
   "type": "APL",
-  "version": "24.1",
+  "version": "2024.1",
   "theme": "dark",
-  "import": [
-    {
-      "name": "alexa-layouts",
-      "version": "1.7.0"
-    }
-  ],
   "mainTemplate": {
-    "parameters": [
-      "welcomeData"
-    ],
-    "item": [
-      {
-        "type": "Container",
-        "width": "100vw",
-        "height": "100vh",
-        "items": [
-          {
-            "type": "AlexaBackground",
-            "backgroundImageSource": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920",
-            "backgroundBlur": true,
-            "overlayGradient": true
-          },
-          {
-            "type": "Frame",
-            "position": "absolute",
-            "top": "15vh",
-            "left": "10vw",
-            "right": "10vw",
-            "bottom": "15vh",
-            "backgroundColor": "rgba(30, 41, 59, 0.6)",
-            "borderRadius": "2vw",
-            "borderWidth": "2px",
-            "borderColor": "rgba(56, 189, 248, 0.3)",
-            "item": {
-              "type": "Container",
-              "paddingLeft": "5vw",
-              "paddingRight": "5vw",
-              "justifyContent": "center",
-              "alignItems": "center",
-              "items": [
-                {
-                  "type": "Text",
-                  "text": "${welcomeData.header}",
-                  "fontSize": "8vw",
-                  "fontWeight": "100",
-                  "color": "#38bdf8",
-                  "letterSpacing": "0.5vw",
-                  "textAlign": "center"
-                },
-                {
-                  "type": "Frame",
-                  "width": "20vw",
-                  "height": "0.5vh",
-                  "backgroundColor": "#38bdf8",
-                  "marginTop": "2vh",
-                  "marginBottom": "4vh",
-                  "opacity": 0.5
-                },
-                {
-                  "type": "Text",
-                  "text": "${welcomeData.text}",
-                  "fontSize": "4vw",
-                  "fontWeight": "300",
-                  "color": "white",
-                  "textAlign": "center",
-                  "opacity": 0.8
-                }
-              ]
+    "parameters": ["welcomeData"],
+    "item": {
+      "type": "Container",
+      "width": "100vw",
+      "height": "100vh",
+      "background": {
+        "type": "LinearGradient",
+        "angle": 135,
+        "colorRange": ["#020817", "#0c1a35", "#071428"]
+      },
+      "justifyContent": "center",
+      "alignItems": "center",
+      "items": [
+        {
+          "type": "Container",
+          "width": "80vw",
+          "alignItems": "center",
+          "items": [
+            {
+              "type": "Text",
+              "text": "◈",
+              "fontSize": "10vw",
+              "color": "#38bdf8",
+              "textAlign": "center"
+            },
+            {
+              "type": "Text",
+              "text": "${welcomeData.header}",
+              "fontSize": "7vw",
+              "fontWeight": "300",
+              "color": "#f1f5f9",
+              "textAlign": "center",
+              "paddingTop": "3vh",
+              "letterSpacing": "0.3vw"
+            },
+            {
+              "type": "Frame",
+              "width": "15vw",
+              "height": "2px",
+              "backgroundColor": "#38bdf8",
+              "marginTop": "2vh",
+              "marginBottom": "3vh"
+            },
+            {
+              "type": "Text",
+              "text": "${welcomeData.text}",
+              "fontSize": "3.5vw",
+              "color": "#94a3b8",
+              "textAlign": "center",
+              "lineHeight": 1.5
             }
-          }
-        ]
-      }
-    ]
+          ]
+        }
+      ]
+    }
   }
 }
