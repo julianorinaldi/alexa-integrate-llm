@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/joho/godotenv"
 	_ "modernc.org/sqlite"
 )
 
@@ -338,63 +336,110 @@ func renderDashboard(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, `
 	<!DOCTYPE html>
-	<html>
+	<html lang="pt-br">
 	<head>
 		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>Dashboard Alexa</title>
 		<style>
-			body { background: #0f172a; color: white; font-family: sans-serif; padding: 2rem; }
-			.container { max-width: 900px; margin: 0 auto; }
-			.card { background: rgba(30, 41, 59, 0.7); padding: 1.5rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 2rem; }
-			table { width: 100%%; border-collapse: collapse; }
-			th, td { text-align: left; padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
-			input { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 0.5rem; border-radius: 0.3rem; color: white; margin-bottom: 1rem; width: 100%%; box-sizing: border-box; }
-			input.inline { width: auto; margin-right: 0.5rem; margin-bottom: 0; }
-			button { background: #38bdf8; border: none; padding: 0.5rem 1rem; border-radius: 0.3rem; cursor: pointer; font-weight: bold; }
-			hr { border: 0; height: 1px; background: rgba(255,255,255,0.1); margin: 2rem 0; }
+			:root { --bg: #0f172a; --card-bg: rgba(30, 41, 59, 0.7); --border: rgba(255,255,255,0.1); --accent: #38bdf8; --text: #f1f5f9; --text-muted: #94a3b8; }
+			body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 2rem; margin: 0; }
+			.container { max-width: 950px; margin: 0 auto; }
+			
+			header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+			header h1 { margin: 0; font-size: 1.8rem; font-weight: 600; }
+			.btn-logout { color: #f87171; text-decoration: none; font-weight: bold; padding: 0.5rem 1rem; border: 1px solid rgba(248,113,113,0.3); border-radius: 0.5rem; transition: all 0.2s; }
+			.btn-logout:hover { background: rgba(248,113,113,0.1); }
+			
+			.card { background: var(--card-bg); backdrop-filter: blur(10px); padding: 1.5rem 2rem; border-radius: 1rem; border: 1px solid var(--border); margin-bottom: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+			.card h3 { margin-top: 0; color: var(--accent); font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem; }
+			
+			label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.3rem; font-weight: 500; }
+			input { width: 100%%; background: rgba(0,0,0,0.25); border: 1px solid var(--border); padding: 0.75rem; border-radius: 0.5rem; color: white; margin-bottom: 1.2rem; box-sizing: border-box; transition: border-color 0.2s; }
+			input:focus { outline: none; border-color: var(--accent); }
+			
+			button { background: var(--accent); color: #0f172a; border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; cursor: pointer; font-weight: bold; font-size: 0.95rem; transition: transform 0.1s, opacity 0.2s; }
+			button:hover { opacity: 0.9; }
+			button:active { transform: scale(0.98); }
+			
+			.form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: start; }
+			.form-row .input-group { margin-bottom: 0; }
+			.form-row input { margin-bottom: 0; }
+			.form-row button { height: 100%%; min-height: 42px; margin-top: 1.2rem; }
+			
+			table { width: 100%%; border-collapse: collapse; margin-top: 1rem; }
+			th { text-align: left; padding: 1rem; border-bottom: 2px solid var(--border); color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+			td { padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); word-break: break-all; }
+			tr:last-child td { border-bottom: none; }
+			tr:hover td { background: rgba(255,255,255,0.02); }
+			
+			.action-link { color: #f87171; text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+			.action-link:hover { text-decoration: underline; }
 		</style>
 	</head>
 	<body>
 		<div class="container">
 			<header>
 				<h1>Painel de Acessos</h1>
-				<a href="./" style="color: grey; text-decoration: none;">Sair</a>
+				<a href="./" class="btn-logout">Sair do Painel</a>
 			</header>
 
 			<!-- Seção de Configuração LLM -->
 			<div class="card">
-				<h3>🤖 Configuração do Modelo de IA (OpenRouter)</h3>
+				<h3>🤖 Configuração do Modelo de IA</h3>
 				<form method="POST" action="admin/llm-config">
 					<label>Nome do Serviço</label>
 					<input type="text" name="name" value="%s" placeholder="Ex: OpenRouter Principal" required>
+					
 					<label>Chave de API (OPENROUTER_API_KEY)</label>
-					<input type="text" name="api_key" value="%s" placeholder="sk-or-v1-..." required>
+					<input type="password" name="api_key" value="%s" placeholder="sk-or-v1-..." required>
+					
 					<label>Modelo (MODEL_NAME)</label>
 					<input type="text" name="model_name" value="%s" placeholder="Ex: google/gemini-2.5-flash-lite" required>
-					<label>Descrição</label>
-					<input type="text" name="description" value="%s" placeholder="Opcional">
-					<button>Salvar Configurações LLM</button>
+					
+					<label>Descrição Opcional</label>
+					<input type="text" name="description" value="%s" placeholder="Detalhes do uso">
+					
+					<div style="text-align: right;">
+						<button>Salvar Configurações LLM</button>
+					</div>
 				</form>
 			</div>
-
-			<hr>
 
 			<!-- Seção de Skills -->
 			<div class="card">
-				<h3>🗣️ Novo Dispositivo / Skill Alexa Autorizada</h3>
-				<form method="POST" action="admin" style="display:flex; gap:0.5rem; align-items:center;">
-					<input type="text" name="owner" placeholder="Nome Dono" class="inline" required>
-					<input type="text" name="skill_id" placeholder="Skill ID" class="inline" required>
-					<input type="text" name="token" placeholder="Token" class="inline" required>
-					<input type="text" name="description" placeholder="Descrição" class="inline">
-					<button>Adicionar</button>
+				<h3>🗣️ Adicionar Novo Dispositivo / Skill</h3>
+				<form method="POST" action="admin">
+					<div class="form-row">
+						<div class="input-group">
+							<label>Dono (Identificação)</label>
+							<input type="text" name="owner" placeholder="Nome" required>
+						</div>
+						<div class="input-group">
+							<label>Skill ID</label>
+							<input type="text" name="skill_id" placeholder="amzn1.ask.skill..." required>
+						</div>
+						<div class="input-group">
+							<label>Token de Segurança</label>
+							<input type="text" name="token" placeholder="Senha única" required>
+						</div>
+						<div class="input-group">
+							<label>Descrição</label>
+							<input type="text" name="description" placeholder="Onde está rodando?">
+						</div>
+						<button>Adicionar</button>
+					</div>
 				</form>
 			</div>
-			<div class="card">
-				<table>
-					<thead><tr><th>Dono</th><th>Skill ID</th><th>Token</th><th>Descrição</th><th>Ação</th></tr></thead>
-					<tbody>%s</tbody>
-				</table>
+			
+			<div class="card" style="padding: 1rem 0;">
+				<h3 style="padding: 0 2rem;">📋 Dispositivos Autorizados</h3>
+				<div style="overflow-x: auto;">
+					<table>
+						<thead><tr><th>Dono</th><th>Skill ID</th><th>Token</th><th>Descrição</th><th style="text-align:center">Ação</th></tr></thead>
+						<tbody>%s</tbody>
+					</table>
+				</div>
 			</div>
 		</div>
 	</body>
@@ -404,7 +449,7 @@ func renderDashboard(w http.ResponseWriter) {
 func renderTableRows(skills []AuthorizedSkill) string {
 	var res string
 	for _, s := range skills {
-		res += fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td><a href="admin/delete?id=%s" style="color:#f87171">Remover</a></td></tr>`,
+		res += fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td style="text-align:center"><a href="admin/delete?id=%s" class="action-link">Remover</a></td></tr>`,
 			s.OwnerName, s.SkillID, s.SecretToken, s.Description, s.ID)
 	}
 	return res
