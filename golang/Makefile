@@ -27,8 +27,7 @@ clean-registry:
 
 deploy: clean-registry
 	@echo "📌 Iniciando deploy para o Google Cloud Functions..."
-	@bash -c 'set -a; source ../.env; set +a; \
-	gcloud functions deploy alexa-llm-go \
+	@bash -c 'gcloud functions deploy alexa-llm-go \
 	  --gen2 \
 	  --runtime=go124 \
 	  --region=us-central1 \
@@ -38,5 +37,4 @@ deploy: clean-registry
 	  --allow-unauthenticated \
 	  --min-instances=0 \
 	  --max-instances=5 \
-	  --memory=256Mi \
-	  --set-env-vars OPENROUTER_API_KEY="$$OPENROUTER_API_KEY",MODEL_NAME="$$MODEL_NAME",ALEXA_SKILL_ID="$$ALEXA_SKILL_ID",ALEXA_SECRET_TOKEN="$$ALEXA_SECRET_TOKEN",SUPABASE_URL="$$SUPABASE_URL",SUPABASE_SERVICE_ROLE_KEY="$$SUPABASE_SERVICE_ROLE_KEY",DASHBOARD_USER="$$DASHBOARD_USER",DASHBOARD_PASS="$$DASHBOARD_PASS",FUNCTION_BASE_URL="$$FUNCTION_BASE_URL"'
+	  --memory=256Mi'

@@ -21,6 +21,9 @@ func main() {
 
 	http.HandleFunc("/", alexallm.HandleAlexaRequest)
 
+	// Força a criação do banco no boot
+	alexallm.InitDB()
+
 	fmt.Printf("📡 Servidor de Debug Local (GO) rodando na porta %s...\n", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("Erro no servidor: %v", err)

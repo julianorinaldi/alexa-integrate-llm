@@ -1,12 +1,11 @@
 # 🚀 Alexa Integrate LLM - Root Makefile
 
-.PHONY: help build up down logs deploy clean-registry backup restore setup
+.PHONY: help build up down logs deploy clean-registry backup restore
 
 help:
 	@echo "Uso: make [comando]"
 	@echo ""
 	@echo "Comandos de Desenvolvimento:"
-	@echo "  setup           Configura o ambiente inicial (copia .env.example)"
 	@echo "  build           Constrói o container da aplicação (Go)"
 	@echo "  up              Inicia os containers em modo interativo"
 	@echo "  down            Para e remove os containers"
@@ -20,13 +19,7 @@ help:
 	@echo "  backup          Cria um backup do banco SQLite (alexa-backup.tar.gz)"
 	@echo "  restore         Restaura o banco a partir do backup"
 
-setup:
-	@if [ ! -f .env ]; then \
-		cp .env.example .env; \
-		echo "✅ Arquivo .env criado a partir de .env.example"; \
-	else \
-		echo "⚠️ Arquivo .env já existe"; \
-	fi
+
 
 build:
 	$(MAKE) -C golang build

@@ -20,6 +20,15 @@ type AuthorizedSkill struct {
 	SkillID     string
 	SecretToken string
 	OwnerName   string
+	Description string
+}
+
+// LLMConfig representa a configuração do modelo de linguagem
+type LLMConfig struct {
+	Name        string
+	APIKey      string
+	ModelName   string
+	Description string
 }
 
 var (
@@ -40,10 +49,25 @@ func getDB() *sql.DB {
 			id          TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
 			skill_id    TEXT NOT NULL,
 			secret_token TEXT NOT NULL,
-			owner_name  TEXT NOT NULL
+			owner_name  TEXT NOT NULL,
+			description TEXT DEFAULT ''
 		)`)
 		if err != nil {
 			log.Fatalf("Erro ao criar tabela authorized_skills: %v", err)
+		}
+		// Atualiza tabela antiga caso já exista
+		db.Exec(`ALTER TABLE authorized_skills ADD COLUMN description TEXT DEFAULT ''`)
+
+		// Tabela de Configuração do LLM
+		_, err = db.Exec(`CREATE TABLE IF NOT EXISTS llm_config (
+			id INTEGER PRIMARY KEY CHECK (id = 1),
+			name TEXT,
+			api_key TEXT,
+			model_name TEXT,
+			description TEXT
+		)`)
+		if err == nil {
+			db.Exec(`INSERT OR IGNORE INTO llm_config (id, name, api_key, model_name, description) VALUES (1, 'OpenRouter Padrão', '', 'google/gemini-2.5-flash-lite', 'Configuração inicial da IA')`)
 		}
 
 		// Tabela de usuários do painel
@@ -71,21 +95,24 @@ func getDB() *sql.DB {
 	return db
 }
 
-// isAuthorized verifica se a chamada da Alexa tem permissão (Env ou SQLite)
-func isAuthorized(skillID, token string) bool {
-	// 1. Verificação legada no .env
-	envIDs := os.Getenv("ALEXA_SKILL_ID")
-	envSecret := os.Getenv("ALEXA_SECRET_TOKEN")
+// InitDB força a inicialização do banco de dados imediatamente (útil no boot do servidor local)
+func InitDB() {
+	getDB()
+}
 
-	if token != "" && token == envSecret {
-		for _, id := range strings.Split(envIDs, ",") {
-			if strings.TrimSpace(id) == skillID {
-				return true
-			}
-		}
+// GetLLMConfig retorna as configs do LLM salvas no banco
+func GetLLMConfig() (string, string) {
+	var apiKey, modelName string
+	err := getDB().QueryRow(`SELECT api_key, model_name FROM llm_config WHERE id = 1`).Scan(&apiKey, &modelName)
+	if err != nil {
+		log.Printf("Erro ao buscar LLM config: %v", err)
+		return "", "openai/gpt-3.5-turbo"
 	}
+	return apiKey, modelName
+}
 
-	// 2. Verificação no SQLite
+// isAuthorized verifica se a chamada da Alexa tem permissão (Somente SQLite)
+func isAuthorized(skillID, token string) bool {
 	var count int
 	err := getDB().QueryRow(
 		`SELECT COUNT(*) FROM authorized_skills WHERE skill_id = ? AND secret_token = ?`,
@@ -98,22 +125,11 @@ func isAuthorized(skillID, token string) bool {
 	return count > 0
 }
 
-func baseURL() string {
-	base := os.Getenv("FUNCTION_BASE_URL")
-	if base == "" {
-		base = "http://localhost:8080"
-	}
-	return strings.TrimSuffix(base, "/")
-}
-
 func adminRedirect(w http.ResponseWriter, r *http.Request, page string) {
-	http.Redirect(w, r, baseURL()+"/"+page, http.StatusSeeOther)
+	http.Redirect(w, r, page, http.StatusSeeOther)
 }
 
 func handleAdminRouting(w http.ResponseWriter, r *http.Request) {
-	godotenv.Load("../.env")
-	godotenv.Load(".env")
-
 	path := r.URL.Path
 
 	if strings.HasSuffix(path, "/login") {
@@ -133,6 +149,11 @@ func handleAdminRouting(w http.ResponseWriter, r *http.Request) {
 
 	if strings.HasSuffix(path, "/delete") {
 		handleDelete(w, r)
+		return
+	}
+
+	if strings.HasSuffix(path, "/llm-config") {
+		handleSaveLLM(w, r)
 		return
 	}
 
@@ -296,10 +317,10 @@ func renderLogin(w http.ResponseWriter, errorMsg string) {
 		<div class="card">
 			<h2 style="text-align:center">Painel Alexa</h2>
 			%s
-			<form method="POST" action="%s/login"><input type="text" name="username" placeholder="Usuário"><input type="password" name="password" placeholder="Senha"><button>Entrar</button></form>
+			<form method="POST" action="login"><input type="text" name="username" placeholder="Usuário"><input type="password" name="password" placeholder="Senha"><button>Entrar</button></form>
 		</div>
 	</body>
-	</html>`, formatError(errorMsg), baseURL())
+	</html>`, formatError(errorMsg))
 }
 
 func formatError(msg string) string {
@@ -311,6 +332,8 @@ func formatError(msg string) string {
 
 func renderDashboard(w http.ResponseWriter) {
 	skills, _ := getSkillsFromDB()
+	var llm LLMConfig
+	getDB().QueryRow(`SELECT name, api_key, model_name, description FROM llm_config WHERE id = 1`).Scan(&llm.Name, &llm.APIKey, &llm.ModelName, &llm.Description)
 
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, `
@@ -325,8 +348,10 @@ func renderDashboard(w http.ResponseWriter) {
 			.card { background: rgba(30, 41, 59, 0.7); padding: 1.5rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 2rem; }
 			table { width: 100%%; border-collapse: collapse; }
 			th, td { text-align: left; padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
-			input { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 0.5rem; border-radius: 0.3rem; color: white; margin-right: 0.5rem; }
+			input { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 0.5rem; border-radius: 0.3rem; color: white; margin-bottom: 1rem; width: 100%%; box-sizing: border-box; }
+			input.inline { width: auto; margin-right: 0.5rem; margin-bottom: 0; }
 			button { background: #38bdf8; border: none; padding: 0.5rem 1rem; border-radius: 0.3rem; cursor: pointer; font-weight: bold; }
+			hr { border: 0; height: 1px; background: rgba(255,255,255,0.1); margin: 2rem 0; }
 		</style>
 	</head>
 	<body>
@@ -335,37 +360,58 @@ func renderDashboard(w http.ResponseWriter) {
 				<h1>Painel de Acessos</h1>
 				<a href="./" style="color: grey; text-decoration: none;">Sair</a>
 			</header>
+
+			<!-- Seção de Configuração LLM -->
 			<div class="card">
-				<h3>Novo Dispositivo/Pessoa</h3>
-				<form method="POST" action="%s/admin">
-					<input type="text" name="owner" placeholder="Nome" required>
-					<input type="text" name="skill_id" placeholder="Skill ID" required>
-					<input type="text" name="token" placeholder="Token" required>
+				<h3>🤖 Configuração do Modelo de IA (OpenRouter)</h3>
+				<form method="POST" action="admin/llm-config">
+					<label>Nome do Serviço</label>
+					<input type="text" name="name" value="%s" placeholder="Ex: OpenRouter Principal" required>
+					<label>Chave de API (OPENROUTER_API_KEY)</label>
+					<input type="text" name="api_key" value="%s" placeholder="sk-or-v1-..." required>
+					<label>Modelo (MODEL_NAME)</label>
+					<input type="text" name="model_name" value="%s" placeholder="Ex: google/gemini-2.5-flash-lite" required>
+					<label>Descrição</label>
+					<input type="text" name="description" value="%s" placeholder="Opcional">
+					<button>Salvar Configurações LLM</button>
+				</form>
+			</div>
+
+			<hr>
+
+			<!-- Seção de Skills -->
+			<div class="card">
+				<h3>🗣️ Novo Dispositivo / Skill Alexa Autorizada</h3>
+				<form method="POST" action="admin" style="display:flex; gap:0.5rem; align-items:center;">
+					<input type="text" name="owner" placeholder="Nome Dono" class="inline" required>
+					<input type="text" name="skill_id" placeholder="Skill ID" class="inline" required>
+					<input type="text" name="token" placeholder="Token" class="inline" required>
+					<input type="text" name="description" placeholder="Descrição" class="inline">
 					<button>Adicionar</button>
 				</form>
 			</div>
 			<div class="card">
 				<table>
-					<thead><tr><th>Dono</th><th>Skill ID</th><th>Token</th><th>Ação</th></tr></thead>
+					<thead><tr><th>Dono</th><th>Skill ID</th><th>Token</th><th>Descrição</th><th>Ação</th></tr></thead>
 					<tbody>%s</tbody>
 				</table>
 			</div>
 		</div>
 	</body>
-	</html>`, baseURL(), renderTableRows(skills, baseURL()))
+	</html>`, llm.Name, llm.APIKey, llm.ModelName, llm.Description, renderTableRows(skills))
 }
 
-func renderTableRows(skills []AuthorizedSkill, base string) string {
+func renderTableRows(skills []AuthorizedSkill) string {
 	var res string
 	for _, s := range skills {
-		res += fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td>%s</td><td><a href="%s/admin/delete?id=%s" style="color:#f87171">Remover</a></td></tr>`,
-			s.OwnerName, s.SkillID, s.SecretToken, base, s.ID)
+		res += fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td><a href="admin/delete?id=%s" style="color:#f87171">Remover</a></td></tr>`,
+			s.OwnerName, s.SkillID, s.SecretToken, s.Description, s.ID)
 	}
 	return res
 }
 
 func getSkillsFromDB() ([]AuthorizedSkill, error) {
-	rows, err := getDB().Query(`SELECT id, skill_id, secret_token, owner_name FROM authorized_skills`)
+	rows, err := getDB().Query(`SELECT id, skill_id, secret_token, owner_name, description FROM authorized_skills`)
 	if err != nil {
 		return nil, err
 	}
@@ -373,7 +419,7 @@ func getSkillsFromDB() ([]AuthorizedSkill, error) {
 	var skills []AuthorizedSkill
 	for rows.Next() {
 		var s AuthorizedSkill
-		if err := rows.Scan(&s.ID, &s.SkillID, &s.SecretToken, &s.OwnerName); err != nil {
+		if err := rows.Scan(&s.ID, &s.SkillID, &s.SecretToken, &s.OwnerName, &s.Description); err != nil {
 			return nil, err
 		}
 		skills = append(skills, s)
@@ -383,12 +429,23 @@ func getSkillsFromDB() ([]AuthorizedSkill, error) {
 
 func handleAdd(w http.ResponseWriter, r *http.Request) {
 	_, err := getDB().Exec(
-		`INSERT INTO authorized_skills (id, skill_id, secret_token, owner_name)
-		 VALUES (lower(hex(randomblob(16))), ?, ?, ?)`,
-		r.FormValue("skill_id"), r.FormValue("token"), r.FormValue("owner"),
+		`INSERT INTO authorized_skills (id, skill_id, secret_token, owner_name, description)
+		 VALUES (lower(hex(randomblob(16))), ?, ?, ?, ?)`,
+		r.FormValue("skill_id"), r.FormValue("token"), r.FormValue("owner"), r.FormValue("description"),
 	)
 	if err != nil {
 		log.Printf("Erro ao inserir skill: %v", err)
+	}
+	adminRedirect(w, r, "admin")
+}
+
+func handleSaveLLM(w http.ResponseWriter, r *http.Request) {
+	_, err := getDB().Exec(
+		`UPDATE llm_config SET name = ?, api_key = ?, model_name = ?, description = ? WHERE id = 1`,
+		r.FormValue("name"), r.FormValue("api_key"), r.FormValue("model_name"), r.FormValue("description"),
+	)
+	if err != nil {
+		log.Printf("Erro ao atualizar llm config: %v", err)
 	}
 	adminRedirect(w, r, "admin")
 }

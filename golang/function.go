@@ -14,7 +14,7 @@ import (
 func HandleAlexaRequest(w http.ResponseWriter, r *http.Request) {
 	// Roteamento básico
 	path := r.URL.Path
-	if strings.Contains(path, "/admin") || strings.Contains(path, "/login") {
+	if strings.Contains(path, "/admin") || strings.Contains(path, "/login") || strings.Contains(path, "/change-password") {
 		handleAdminRouting(w, r)
 		return
 	}
@@ -42,13 +42,7 @@ func HandleAlexaRequest(w http.ResponseWriter, r *http.Request) {
 
 	// ---- INÍCIO DA VERIFICAÇÃO DE SEGURANÇA ----
 	
-	// 1. Verificação por Token de URL Opcional (?token=...)
-	secretToken := os.Getenv("ALEXA_SECRET_TOKEN")
-	if secretToken != "" && r.URL.Query().Get("token") != secretToken {
-		log.Printf("Acesso negado: Secret Token inválido ou ausente")
-		http.Error(w, "Unauthorized - Invalid Token", http.StatusUnauthorized)
-		return
-	}
+	// 1. Acesso Opcional de Token Global foi descontinuado em favor da tabela autorizada.
 
 	// 2. Verificação oficial pelo ALEXA_SKILL_ID
 	// Agora verificamos tanto na lista estática do .env quanto no banco de dados Supabase
@@ -65,7 +59,8 @@ func HandleAlexaRequest(w http.ResponseWriter, r *http.Request) {
 	
 	// ---- FIM DA VERIFICAÇÃO DE SEGURANÇA ----
 
-	llmClient, err := llm.NewOpenRouterClient()
+	apiKey, modelName := GetLLMConfig()
+	llmClient, err := llm.NewOpenRouterClient(apiKey, modelName)
 	if err != nil {
 		log.Printf("Aviso LLM INIT: %v", err)
 		// We still process so that Alexa can reply there's an error rather than just 500 error

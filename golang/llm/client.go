@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 )
 
@@ -32,15 +31,13 @@ type ChatResponse struct {
 	} `json:"choices"`
 }
 
-func NewOpenRouterClient() (*OpenRouterClient, error) {
-	apiKey := os.Getenv("OPENROUTER_API_KEY")
-	model := os.Getenv("MODEL_NAME")
+func NewOpenRouterClient(apiKey, model string) (*OpenRouterClient, error) {
 	if model == "" {
 		model = "openai/gpt-3.5-turbo"
 	}
 
 	if apiKey == "" {
-		return nil, fmt.Errorf("OPENROUTER_API_KEY não encontrada nas variáveis de ambiente")
+		return nil, fmt.Errorf("OPENROUTER_API_KEY não foi configurada no banco de dados")
 	}
 
 	return &OpenRouterClient{

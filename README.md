@@ -10,19 +10,13 @@ O projeto utiliza **Go (Golang)** como linguagem principal com foco em Cloud Fun
 * **`skill-package/`**: Modelo de interação e assets da Alexa Skill.
 
 ---
-## 🛠️ Variáveis de Ambiente (.env)
+## 🛠️ Configuração Inicial (Sem Variáveis de Ambiente!)
 
-Crie um arquivo `.env` na raiz do projeto (o arquivo `.gitignore` já está configurado para não subir suas chaves):
+O sistema evoluiu para **eliminar a necessidade de arquivos `.env`** com credenciais difíceis de manter.
+Toda a configuração de chaves (API) e cadastro de Skills agora é feita via **Painel Administrativo Web**, que persiste as informações em um banco de dados SQLite local mapeado por volume.
 
-| Variável | Descrição | Exemplo |
-| :--- | :--- | :--- |
-| `OPENROUTER_API_KEY` | Sua chave de API do OpenRouter. | `sk-or-v1-...` |
-| `MODEL_NAME` | Nome do modelo (recomenda-se modelos Flash para baixa latência). | `google/gemini-2.0-flash-lite` |
-| `ALEXA_SKILL_ID` | (Segurança) Lista de IDs permitidos (separados por vírgula). | `amzn1.ask.skill...,amzn2...` |
-| `ALEXA_SECRET_TOKEN` | (Segurança) Token global compartilhado para acesso. | `UmaSenhaComplexa123` |
-
-
----
+**Única variável possível no `.env` (Opcional)**:
+`PORT=5000` (Define a porta local para debug).
 
 ## 🎙️ Configurando a Skill na Amazon Alexa
 
@@ -39,8 +33,8 @@ Para que a Alexa entenda o que o usuário fala e encaminhe para o nosso código,
 3. **Interfaces (Echo Show)**:
    - Ative a chave **Alexa Presentation Language** para suporte a telas.
 4. **Endpoint**:
-   - Selecione **HTTPS**. Em *Default Region*, cole a URL da sua Cloud Function com o token:
-     `https://SUA_URL_GCP/alexa-llm-go?token=SEU_TOKEN`
+   - Selecione **HTTPS**. Em *Default Region*, cole a URL da sua Cloud Function limpa:
+     `https://SUA_URL_GCP/alexa-llm-go`
     - SSL: Selecione *"My development endpoint is a sub-domain of a domain that has a wildcard certificate..."*.
 
 ### 🔄 Captura Total (Ask-All)
@@ -56,9 +50,10 @@ Agora você pode compartilhar seu backend com outras pessoas de forma segura atr
 1. **Acesso**: Navegue até `https://SUA_URL_GCP/admin`.
 2. **Login Inicial**: No primeiro acesso, utilize o usuário padrão **`admin`** e a senha **`admin`**.
 3. **Segurança**: O sistema detectará o acesso inicial e forçará a troca de senha imediatamente. A nova senha será salva de forma segura no SQLite.
-3. **Gerenciamento**:
-   - Cadastre novos **Skill IDs** e **Secret Tokens** individuais para amigos ou clientes.
-   - O sistema valida a permissão consultando tanto o `.env` (acesso mestre) quanto o banco de dados SQLite em tempo real.
+3. **Gerenciamento Completo**:
+   - **Modelos LLM:** Cadastre o nome do serviço, sua chave (`OPENROUTER_API_KEY`) e o modelo (`MODEL_NAME`) que a IA vai usar.
+   - **Dispositivos/Skills:** Cadastre novos **Skill IDs** e **Secret Tokens** individuais para amigos ou clientes.
+   - Apenas dispositivos com `Skill ID` e `Token` correspondentes ao cadastrado no banco SQLite poderão acessar a IA.
 
 ---
 
