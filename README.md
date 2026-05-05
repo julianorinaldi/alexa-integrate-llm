@@ -21,8 +21,7 @@ Crie um arquivo `.env` na raiz do projeto (o arquivo `.gitignore` já está conf
 | `MODEL_NAME` | Nome do modelo (recomenda-se modelos Flash para baixa latência). | `google/gemini-2.0-flash-lite` |
 | `ALEXA_SKILL_ID` | (Segurança) Lista de IDs permitidos (separados por vírgula). | `amzn1.ask.skill...,amzn2...` |
 | `ALEXA_SECRET_TOKEN` | (Segurança) Token global compartilhado para acesso. | `UmaSenhaComplexa123` |
-| `SUPABASE_URL` | URL do seu projeto Supabase para persistência de IDs. | `https://qz...supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Chave secreta de serviço do Supabase. | `eyJhbGciOi...` |
+| `DB_PATH` | Caminho do arquivo SQLite (dentro do container). | `/data/alexa.db` |
 | `DASHBOARD_USER` | Usuário para acessar o painel administrativo. | `admin` |
 | `DASHBOARD_PASS` | Senha para acessar o painel administrativo. | `mudar123` |
 
@@ -61,22 +60,37 @@ Agora você pode compartilhar seu backend com outras pessoas de forma segura atr
 2. **Login**: Use as credenciais configuradas nas variáveis `DASHBOARD_USER` e `DASHBOARD_PASS`.
 3. **Gerenciamento**:
    - Cadastre novos **Skill IDs** e **Secret Tokens** individuais para amigos ou clientes.
-   - O sistema valida a permissão consultando tanto o `.env` (acesso mestre) quanto o banco de dados Supabase em tempo real.
+   - O sistema valida a permissão consultando tanto o `.env` (acesso mestre) quanto o banco de dados SQLite em tempo real.
 
 ---
 
-## 📦 Banco de Dados (Supabase)
+## 📦 Banco de Dados (SQLite)
 
-O projeto utiliza o **Supabase (PostgreSQL)** para persistência de dados fora do ciclo de vida efêmero do Cloud Functions.
+O projeto utiliza **SQLite** para persistência local, dentro do container. O arquivo é criado automaticamente na primeira execução — nenhuma configuração manual de banco é necessária.
 
 ### Estrutura da Tabela:
 A tabela `authorized_skills` armazena:
+- `id`: UUID gerado automaticamente pelo SQLite.
 - `skill_id`: O identificador exclusivo da Alexa Skill.
 - `secret_token`: O token de segurança que deve ser passado na URL do webhook.
 - `owner_name`: Nome da pessoa/dispositivo para identificação.
 
-### Configuração Inicial:
-Certifique-se de executar o script SQL de criação da tabela (disponível na documentação técnica) no painel do Supabase antes de usar o Dashboard.
+### Volume Docker (Backup):
+O arquivo SQLite fica em `/data/alexa.db` dentro do container, mapeado para o volume nomeado `alexa_data`.
+
+```bash
+# Fazer backup do banco
+docker run --rm \
+  -v alexa_data:/data \
+  -v $(pwd):/backup \
+  alpine tar czf /backup/alexa-backup.tar.gz /data
+
+# Restaurar backup
+docker run --rm \
+  -v alexa_data:/data \
+  -v $(pwd):/backup \
+  alpine tar xzf /backup/alexa-backup.tar.gz -C /
+```
 
 ---
 
@@ -136,4 +150,4 @@ GCP Console: https://console.cloud.google.com/home
 
 Endpoint publicado: https://us-central1-alexa-inteligente.cloudfunctions.net/alexa-llm-go
 
-Banco Supabase Free: https://supabase.com/dashboard/project/qzuredmnnkidmsftngac
+Volume Docker (SQLite): `docker volume inspect alexa_data`

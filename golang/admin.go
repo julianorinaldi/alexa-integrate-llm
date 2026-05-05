@@ -1,33 +1,62 @@
 package alexallm
 
 import (
-	"bytes"
-	"encoding/json"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/joho/godotenv"
+	_ "modernc.org/sqlite"
 )
 
 // AuthorizedSkill representa um registro no banco de dados
 type AuthorizedSkill struct {
-	ID          string `json:"id,omitempty"`
-	SkillID     string `json:"skill_id"`
-	SecretToken string `json:"secret_token"`
-	OwnerName   string `json:"owner_name"`
+	ID          string
+	SkillID     string
+	SecretToken string
+	OwnerName   string
 }
 
-// isAuthorized verifica se a chamada da Alexa tem permissão (Env ou Supabase)
+var (
+	db     *sql.DB
+	dbOnce sync.Once
+)
+
+func getDB() *sql.DB {
+	dbOnce.Do(func() {
+		path := os.Getenv("DB_PATH")
+		if path == "" {
+			path = "/data/alexa.db"
+		}
+		var err error
+		db, err = sql.Open("sqlite", path)
+		if err != nil {
+			log.Fatalf("Erro ao abrir SQLite em %s: %v", path, err)
+		}
+		_, err = db.Exec(`CREATE TABLE IF NOT EXISTS authorized_skills (
+			id          TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+			skill_id    TEXT NOT NULL,
+			secret_token TEXT NOT NULL,
+			owner_name  TEXT NOT NULL
+		)`)
+		if err != nil {
+			log.Fatalf("Erro ao criar tabela authorized_skills: %v", err)
+		}
+	})
+	return db
+}
+
+// isAuthorized verifica se a chamada da Alexa tem permissão (Env ou SQLite)
 func isAuthorized(skillID, token string) bool {
 	// 1. Verificação legada no .env
 	envIDs := os.Getenv("ALEXA_SKILL_ID")
 	envSecret := os.Getenv("ALEXA_SECRET_TOKEN")
-	
-	// Se o token for passado e bater com o segredo global, verificamos os IDs do env
+
 	if token != "" && token == envSecret {
 		for _, id := range strings.Split(envIDs, ",") {
 			if strings.TrimSpace(id) == skillID {
@@ -36,41 +65,23 @@ func isAuthorized(skillID, token string) bool {
 		}
 	}
 
-	// 2. Verificação no Supabase
-	return checkSupabaseAuth(skillID, token)
-}
-
-func checkSupabaseAuth(skillID, token string) bool {
-	supabaseURL := os.Getenv("SUPABASE_URL")
-	supabaseKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
-	if supabaseURL == "" || supabaseKey == "" || strings.Contains(supabaseURL, "sua-url") {
-		return false
-	}
-
-	url := fmt.Sprintf("%s/rest/v1/authorized_skills?skill_id=eq.%s&secret_token=eq.%s&select=count", supabaseURL, skillID, token)
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("apikey", supabaseKey)
-	req.Header.Set("Authorization", "Bearer "+supabaseKey)
-	req.Header.Set("Range-Unit", "items")
-	req.Header.Set("Range", "0-0")
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
+	// 2. Verificação no SQLite
+	var count int
+	err := getDB().QueryRow(
+		`SELECT COUNT(*) FROM authorized_skills WHERE skill_id = ? AND secret_token = ?`,
+		skillID, token,
+	).Scan(&count)
 	if err != nil {
-		log.Printf("Erro consulta Supabase: %v", err)
+		log.Printf("Erro consulta SQLite: %v", err)
 		return false
 	}
-	defer resp.Body.Close()
-
-	// Se encontrar 1 registro, está autorizado
-	return resp.StatusCode == http.StatusOK && resp.Header.Get("Content-Range") != "" && !strings.HasSuffix(resp.Header.Get("Content-Range"), "/0")
+	return count > 0
 }
 
-// baseURL retorna a URL base do painel (ex: https://....cloudfunctions.net/alexa-llm-go)
 func baseURL() string {
 	base := os.Getenv("FUNCTION_BASE_URL")
 	if base == "" {
-		base = "http://localhost:8080" // fallback local
+		base = "http://localhost:8080"
 	}
 	return strings.TrimSuffix(base, "/")
 }
@@ -79,14 +90,12 @@ func adminRedirect(w http.ResponseWriter, r *http.Request, page string) {
 	http.Redirect(w, r, baseURL()+"/"+page, http.StatusSeeOther)
 }
 
-
 func handleAdminRouting(w http.ResponseWriter, r *http.Request) {
-	// Tentar carregar .env se existir (útil para desenvolvimento local e GCF se o arquivo for enviado)
 	godotenv.Load("../.env")
 	godotenv.Load(".env")
 
 	path := r.URL.Path
-	
+
 	if strings.HasSuffix(path, "/login") {
 		handleLogin(w, r)
 		return
@@ -101,7 +110,7 @@ func handleAdminRouting(w http.ResponseWriter, r *http.Request) {
 		handleDelete(w, r)
 		return
 	}
-	
+
 	if r.Method == http.MethodPost {
 		handleAdd(w, r)
 		return
@@ -174,13 +183,15 @@ func renderLogin(w http.ResponseWriter, errorMsg string) {
 }
 
 func formatError(msg string) string {
-	if msg == "" { return "" }
+	if msg == "" {
+		return ""
+	}
 	return fmt.Sprintf(`<div class="error">%s</div>`, msg)
 }
 
 func renderDashboard(w http.ResponseWriter) {
-	skills, _ := getSkillsFromSupabase()
-	
+	skills, _ := getSkillsFromDB()
+
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, `
 	<!DOCTYPE html>
@@ -227,53 +238,46 @@ func renderDashboard(w http.ResponseWriter) {
 func renderTableRows(skills []AuthorizedSkill, base string) string {
 	var res string
 	for _, s := range skills {
-		res += fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td>%s</td><td><a href="%s/admin/delete?id=%s" style="color:#f87171">Remover</a></td></tr>`, s.OwnerName, s.SkillID, s.SecretToken, base, s.ID)
+		res += fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td>%s</td><td><a href="%s/admin/delete?id=%s" style="color:#f87171">Remover</a></td></tr>`,
+			s.OwnerName, s.SkillID, s.SecretToken, base, s.ID)
 	}
 	return res
 }
 
-func getSkillsFromSupabase() ([]AuthorizedSkill, error) {
-	supabaseURL := os.Getenv("SUPABASE_URL")
-	supabaseKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
-	if supabaseURL == "" { return nil, nil }
-	req, _ := http.NewRequest("GET", supabaseURL+"/rest/v1/authorized_skills?select=*", nil)
-	req.Header.Set("apikey", supabaseKey)
-	req.Header.Set("Authorization", "Bearer "+supabaseKey)
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, _ := client.Do(req)
-	if resp == nil { return nil, nil }
-	defer resp.Body.Close()
+func getSkillsFromDB() ([]AuthorizedSkill, error) {
+	rows, err := getDB().Query(`SELECT id, skill_id, secret_token, owner_name FROM authorized_skills`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 	var skills []AuthorizedSkill
-	json.NewDecoder(resp.Body).Decode(&skills)
-	return skills, nil
+	for rows.Next() {
+		var s AuthorizedSkill
+		if err := rows.Scan(&s.ID, &s.SkillID, &s.SecretToken, &s.OwnerName); err != nil {
+			return nil, err
+		}
+		skills = append(skills, s)
+	}
+	return skills, rows.Err()
 }
 
 func handleAdd(w http.ResponseWriter, r *http.Request) {
-	skill := AuthorizedSkill{
-		OwnerName:   r.FormValue("owner"),
-		SkillID:     r.FormValue("skill_id"),
-		SecretToken: r.FormValue("token"),
+	_, err := getDB().Exec(
+		`INSERT INTO authorized_skills (id, skill_id, secret_token, owner_name)
+		 VALUES (lower(hex(randomblob(16))), ?, ?, ?)`,
+		r.FormValue("skill_id"), r.FormValue("token"), r.FormValue("owner"),
+	)
+	if err != nil {
+		log.Printf("Erro ao inserir skill: %v", err)
 	}
-	body, _ := json.Marshal(skill)
-	supabaseURL := os.Getenv("SUPABASE_URL")
-	supabaseKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
-	req, _ := http.NewRequest("POST", supabaseURL+"/rest/v1/authorized_skills", bytes.NewBuffer(body))
-	req.Header.Set("apikey", supabaseKey)
-	req.Header.Set("Authorization", "Bearer "+supabaseKey)
-	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{Timeout: 5 * time.Second}
-	client.Do(req)
 	adminRedirect(w, r, "admin")
 }
 
 func handleDelete(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
-	supabaseURL := os.Getenv("SUPABASE_URL")
-	supabaseKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
-	req, _ := http.NewRequest("DELETE", supabaseURL+"/rest/v1/authorized_skills?id=eq."+id, nil)
-	req.Header.Set("apikey", supabaseKey)
-	req.Header.Set("Authorization", "Bearer "+supabaseKey)
-	client := &http.Client{Timeout: 5 * time.Second}
-	client.Do(req)
+	_, err := getDB().Exec(`DELETE FROM authorized_skills WHERE id = ?`, id)
+	if err != nil {
+		log.Printf("Erro ao deletar skill: %v", err)
+	}
 	adminRedirect(w, r, "admin")
 }
