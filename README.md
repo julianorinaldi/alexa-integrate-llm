@@ -129,8 +129,4 @@ O sistema agora possui um **System Prompt** fixo no arquivo `llm/client.go` que 
 ## URL Importantes
 AWS Developer Alexa: https://developer.amazon.com/alexa/console/ask
 
-GCP Console: https://console.cloud.google.com/home
-
-Endpoint publicado: https://us-central1-alexa-inteligente.cloudfunctions.net/alexa-llm-go
-
 Volume Docker (SQLite): `docker volume inspect alexa_data`
