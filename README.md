@@ -2,12 +2,12 @@
 
 Este projeto integra a **Alexa** com qualquer modelo de Inteligência Artificial via **OpenRouter** (GPT-4, Claude 3, Llama 3, etc.), com suporte completo a visualização no **Echo Show** usando APL.
 
-O projeto foi modernizado e agora suporta duas stacks (Go e Python), sendo **Go (Golang) a linguagem principal** com foco em Cloud Functions e baixa latência (Cold Start incrivelmente rápido).
+O projeto utiliza **Go (Golang)** como linguagem principal com foco em Cloud Functions e baixa latência (Cold Start incrivelmente rápido).
 
 ## 📂 Organização do Repositório
 
-* **`golang/`**: Diretório principal contendo a stack em **Go 1.24** otimizada para Cloud Functions (GCP).
-* **`python/`**: Código legado contendo a versão original rodando em ambiente Python 3.12 para AWS Lambda.
+* **`golang/`**: Diretório contendo a stack em **Go 1.24** otimizada para Cloud Functions (GCP).
+* **`skill-package/`**: Modelo de interação e assets da Alexa Skill.
 
 ---
 
@@ -94,12 +94,11 @@ docker run --rm \
 
 ---
 
-## 🚀 Ambiente de Desenvolvimento DEV Local (GO)
+## 🚀 Ambiente de Desenvolvimento DEV Local
 
-Nossa stack utiliza **Go 1.24**. Para rodar localmente:
+Nossa stack utiliza **Go 1.24**. Para rodar localmente usando o Makefile da raiz:
 
 ```bash
-cd golang/
 make build   # Cria a imagem Docker
 make up      # Roda na porta 5000
 ```
@@ -123,7 +122,6 @@ O comando `make deploy` foi otimizado com:
 - `--memory=256Mi`: Equilíbrio entre performance e custo.
 
 ```bash
-cd golang/
 make deploy
 ```
 

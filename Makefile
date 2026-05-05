@@ -1,0 +1,63 @@
+# 🚀 Alexa Integrate LLM - Root Makefile
+
+.PHONY: help build up down logs deploy clean-registry backup restore setup
+
+help:
+	@echo "Uso: make [comando]"
+	@echo ""
+	@echo "Comandos de Desenvolvimento:"
+	@echo "  setup           Configura o ambiente inicial (copia .env.example)"
+	@echo "  build           Constrói o container da aplicação (Go)"
+	@echo "  up              Inicia os containers em modo interativo"
+	@echo "  down            Para e remove os containers"
+	@echo "  logs            Exibe os logs dos containers"
+	@echo ""
+	@echo "Comandos de Deploy (GCP):"
+	@echo "  deploy          Executa o deploy para o Google Cloud Functions"
+	@echo "  clean-registry  Limpa versões antigas no Artifact Registry"
+	@echo ""
+	@echo "Comandos de Banco de Dados:"
+	@echo "  backup          Cria um backup do banco SQLite (alexa-backup.tar.gz)"
+	@echo "  restore         Restaura o banco a partir do backup"
+
+setup:
+	@if [ ! -f .env ]; then \
+		cp .env.example .env; \
+		echo "✅ Arquivo .env criado a partir de .env.example"; \
+	else \
+		echo "⚠️ Arquivo .env já existe"; \
+	fi
+
+build:
+	$(MAKE) -C golang build
+
+up:
+	$(MAKE) -C golang up
+
+down:
+	$(MAKE) -C golang down
+
+logs:
+	$(MAKE) -C golang logs
+
+deploy:
+	$(MAKE) -C golang deploy
+
+clean-registry:
+	$(MAKE) -C golang clean-registry
+
+backup:
+	@echo "📦 Criando backup do banco de dados..."
+	docker run --rm \
+	  -v alexa_data:/data \
+	  -v $$(pwd):/backup \
+	  alpine tar czf /backup/alexa-backup.tar.gz /data
+	@echo "✅ Backup concluído: alexa-backup.tar.gz"
+
+restore:
+	@echo "🔄 Restaurando backup do banco de dados..."
+	docker run --rm \
+	  -v alexa_data:/data \
+	  -v $$(pwd):/backup \
+	  alpine tar xzf /backup/alexa-backup.tar.gz -C /
+	@echo "✅ Restauração concluída"
