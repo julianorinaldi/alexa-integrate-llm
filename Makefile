@@ -48,16 +48,11 @@ clean-registry:
 
 backup:
 	@echo "📦 Criando backup do banco de dados..."
-	docker run --rm \
-	  -v alexa_data:/data \
-	  -v $$(pwd):/backup \
-	  alpine tar czf /backup/alexa-backup.tar.gz /data
+	tar -czf alexa-backup.tar.gz -C volume/data .
 	@echo "✅ Backup concluído: alexa-backup.tar.gz"
 
 restore:
 	@echo "🔄 Restaurando backup do banco de dados..."
-	docker run --rm \
-	  -v alexa_data:/data \
-	  -v $$(pwd):/backup \
-	  alpine tar xzf /backup/alexa-backup.tar.gz -C /
+	mkdir -p volume/data
+	tar -xzf alexa-backup.tar.gz -C volume/data
 	@echo "✅ Restauração concluída"

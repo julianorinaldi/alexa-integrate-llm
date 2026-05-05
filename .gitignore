@@ -51,3 +51,10 @@ dist/
 # Docker
 .docker/
 docker-compose.override.yml
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+volume/data/*
+!volume/data/README-data.md

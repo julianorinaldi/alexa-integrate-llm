@@ -10,7 +10,6 @@ O projeto utiliza **Go (Golang)** como linguagem principal com foco em Cloud Fun
 * **`skill-package/`**: Modelo de interação e assets da Alexa Skill.
 
 ---
-
 ## 🛠️ Variáveis de Ambiente (.env)
 
 Crie um arquivo `.env` na raiz do projeto (o arquivo `.gitignore` já está configurado para não subir suas chaves):
@@ -21,9 +20,7 @@ Crie um arquivo `.env` na raiz do projeto (o arquivo `.gitignore` já está conf
 | `MODEL_NAME` | Nome do modelo (recomenda-se modelos Flash para baixa latência). | `google/gemini-2.0-flash-lite` |
 | `ALEXA_SKILL_ID` | (Segurança) Lista de IDs permitidos (separados por vírgula). | `amzn1.ask.skill...,amzn2...` |
 | `ALEXA_SECRET_TOKEN` | (Segurança) Token global compartilhado para acesso. | `UmaSenhaComplexa123` |
-| `DB_PATH` | Caminho do arquivo SQLite (dentro do container). | `/data/alexa.db` |
-| `DASHBOARD_USER` | Usuário para acessar o painel administrativo. | `admin` |
-| `DASHBOARD_PASS` | Senha para acessar o painel administrativo. | `mudar123` |
+
 
 ---
 
@@ -57,7 +54,8 @@ Agora você pode compartilhar seu backend com outras pessoas de forma segura atr
 
 ### Como funciona:
 1. **Acesso**: Navegue até `https://SUA_URL_GCP/admin`.
-2. **Login**: Use as credenciais configuradas nas variáveis `DASHBOARD_USER` e `DASHBOARD_PASS`.
+2. **Login Inicial**: No primeiro acesso, utilize o usuário padrão **`admin`** e a senha **`admin`**.
+3. **Segurança**: O sistema detectará o acesso inicial e forçará a troca de senha imediatamente. A nova senha será salva de forma segura no SQLite.
 3. **Gerenciamento**:
    - Cadastre novos **Skill IDs** e **Secret Tokens** individuais para amigos ou clientes.
    - O sistema valida a permissão consultando tanto o `.env` (acesso mestre) quanto o banco de dados SQLite em tempo real.
@@ -69,27 +67,19 @@ Agora você pode compartilhar seu backend com outras pessoas de forma segura atr
 O projeto utiliza **SQLite** para persistência local, dentro do container. O arquivo é criado automaticamente na primeira execução — nenhuma configuração manual de banco é necessária.
 
 ### Estrutura da Tabela:
-A tabela `authorized_skills` armazena:
-- `id`: UUID gerado automaticamente pelo SQLite.
-- `skill_id`: O identificador exclusivo da Alexa Skill.
-- `secret_token`: O token de segurança que deve ser passado na URL do webhook.
-- `owner_name`: Nome da pessoa/dispositivo para identificação.
+A tabela `authorized_skills` armazena as skills autorizadas, enquanto a tabela `dashboard_users` armazena as credenciais de acesso ao painel. Ambos os dados persistem no volume Docker.
 
-### Volume Docker (Backup):
-O arquivo SQLite fica em `/data/alexa.db` dentro do container, mapeado para o volume nomeado `alexa_data`.
+### Mapeamento de Volume Local (Persistência):
+O arquivo SQLite e demais dados persistentes ficam armazenados no diretório **`volume/data`** na raiz do projeto. Este diretório é mapeado para `/data` dentro do container no `docker-compose`. 
+
+Isso significa que você tem acesso direto ao arquivo do banco pelo seu sistema host.
 
 ```bash
-# Fazer backup do banco
-docker run --rm \
-  -v alexa_data:/data \
-  -v $(pwd):/backup \
-  alpine tar czf /backup/alexa-backup.tar.gz /data
+# Fazer backup do banco (cria um arquivo alexa-backup.tar.gz)
+make backup
 
-# Restaurar backup
-docker run --rm \
-  -v alexa_data:/data \
-  -v $(pwd):/backup \
-  alpine tar xzf /backup/alexa-backup.tar.gz -C /
+# Restaurar backup (descompacta de volta para volume/data)
+make restore
 ```
 
 ---

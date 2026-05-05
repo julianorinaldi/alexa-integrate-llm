@@ -29,10 +29,8 @@ var (
 
 func getDB() *sql.DB {
 	dbOnce.Do(func() {
-		path := os.Getenv("DB_PATH")
-		if path == "" {
-			path = "/data/alexa.db"
-		}
+		path := "/data/alexa.db"
+
 		var err error
 		db, err = sql.Open("sqlite", path)
 		if err != nil {
@@ -46,6 +44,28 @@ func getDB() *sql.DB {
 		)`)
 		if err != nil {
 			log.Fatalf("Erro ao criar tabela authorized_skills: %v", err)
+		}
+
+		// Tabela de usuários do painel
+		_, err = db.Exec(`CREATE TABLE IF NOT EXISTS dashboard_users (
+			username TEXT PRIMARY KEY,
+			password TEXT NOT NULL,
+			must_change_password INTEGER DEFAULT 0
+		)`)
+		if err != nil {
+			log.Fatalf("Erro ao criar tabela dashboard_users: %v", err)
+		}
+
+		// Cria usuário inicial admin:admin se a tabela estiver vazia
+		var userCount int
+		err = db.QueryRow("SELECT COUNT(*) FROM dashboard_users").Scan(&userCount)
+		if err == nil && userCount == 0 {
+			_, err = db.Exec("INSERT INTO dashboard_users (username, password, must_change_password) VALUES (?, ?, ?)", "admin", "admin", 1)
+			if err != nil {
+				log.Printf("⚠️ Aviso: Falha ao criar usuário inicial no SQLite: %v", err)
+			} else {
+				log.Printf("✅ Usuário padrão 'admin:admin' criado. Troca de senha obrigatória no primeiro acesso.")
+			}
 		}
 	})
 	return db
@@ -101,6 +121,11 @@ func handleAdminRouting(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if strings.HasSuffix(path, "/change-password") {
+		handleChangePassword(w, r)
+		return
+	}
+
 	if !isAuthenticated(r) {
 		adminRedirect(w, r, "login")
 		return
@@ -136,10 +161,26 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	user := r.FormValue("username")
 	pass := r.FormValue("password")
 
-	dashUser := os.Getenv("DASHBOARD_USER")
-	dashPass := os.Getenv("DASHBOARD_PASS")
+	var dbUser string
+	var mustChange int
+	err := getDB().QueryRow(
+		"SELECT username, must_change_password FROM dashboard_users WHERE username = ? AND password = ?",
+		user, pass,
+	).Scan(&dbUser, &mustChange)
 
-	if user != "" && user == dashUser && pass == dashPass {
+	if err == nil && dbUser != "" {
+		if mustChange == 1 {
+			// Redireciona para troca de senha passando o user via cookie temporário
+			http.SetCookie(w, &http.Cookie{
+				Name:    "change_pwd_user",
+				Value:   dbUser,
+				Path:    "/",
+				Expires: time.Now().Add(5 * time.Minute),
+			})
+			adminRedirect(w, r, "change-password")
+			return
+		}
+
 		http.SetCookie(w, &http.Cookie{
 			Name:    "admin_session",
 			Value:   "authorized",
@@ -150,8 +191,87 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Tentativa de login falhou. Env User: '%s', Pass configured: %v", dashUser, dashPass != "")
-	renderLogin(w, "Credenciais inválidas ou variáveis não carregadas.")
+	log.Printf("Tentativa de login falhou para o usuário: '%s'", user)
+	renderLogin(w, "Credenciais inválidas.")
+}
+
+func handleChangePassword(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("change_pwd_user")
+	if err != nil {
+		adminRedirect(w, r, "login")
+		return
+	}
+	username := cookie.Value
+
+	if r.Method == http.MethodGet {
+		renderChangePassword(w, username, "")
+		return
+	}
+
+	newPass := r.FormValue("new_password")
+	confirmPass := r.FormValue("confirm_password")
+
+	if newPass == "" || newPass == "admin" {
+		renderChangePassword(w, username, "Escolha uma senha diferente de 'admin'.")
+		return
+	}
+
+	if newPass != confirmPass {
+		renderChangePassword(w, username, "As senhas não coincidem.")
+		return
+	}
+
+	_, err = getDB().Exec(
+		"UPDATE dashboard_users SET password = ?, must_change_password = 0 WHERE username = ?",
+		newPass, username,
+	)
+	if err != nil {
+		renderChangePassword(w, username, "Erro ao salvar nova senha.")
+		return
+	}
+
+	// Limpa cookie de troca e loga
+	http.SetCookie(w, &http.Cookie{Name: "change_pwd_user", MaxAge: -1, Path: "/"})
+	http.SetCookie(w, &http.Cookie{
+		Name:    "admin_session",
+		Value:   "authorized",
+		Path:    "/",
+		Expires: time.Now().Add(24 * time.Hour),
+	})
+	adminRedirect(w, r, "admin")
+}
+
+func renderChangePassword(w http.ResponseWriter, username, errorMsg string) {
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, `
+	<!DOCTYPE html>
+	<html lang="pt-br">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Alterar Senha - Alexa Admin</title>
+		<style>
+			:root { --bg: #0f172a; --accent: #38bdf8; }
+			body { background: var(--bg); color: white; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+			.card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); padding: 2rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.1); width: 320px; }
+			input { width: 100%%; padding: 0.75rem; margin-bottom: 1rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: white; box-sizing: border-box; }
+			button { width: 100%%; padding: 0.75rem; background: var(--accent); border: none; border-radius: 0.5rem; font-weight: bold; cursor: pointer; }
+			.error { color: #f87171; font-size: 0.8rem; margin-bottom: 1rem; text-align: center; }
+		</style>
+	</head>
+	<body>
+		<div class="card">
+			<h2 style="text-align:center">Nova Senha</h2>
+			<p style="font-size:0.9rem; color:#94a3b8; text-align:center">Olá <b>%s</b>, por segurança você deve alterar sua senha inicial.</p>
+			%s
+			<form method="POST">
+				<input type="password" name="new_password" placeholder="Nova Senha" required>
+				<input type="password" name="confirm_password" placeholder="Confirme a Nova Senha" required>
+				<button>Salvar e Entrar</button>
+			</form>
+		</div>
+	</body>
+	</html>`, username, formatError(errorMsg))
 }
 
 func renderLogin(w http.ResponseWriter, errorMsg string) {
